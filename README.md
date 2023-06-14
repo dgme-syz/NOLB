@@ -3,3 +3,9 @@
 
 ## 环境
 * python = 3.10
+
+```
+conda create -n ML python==3.10
+conda activate ML
+pip install -r requirements.txt
+```
