@@ -9,3 +9,11 @@ conda create -n ML python==3.10
 conda activate ML
 pip install -r requirements.txt
 ```
+## 细节
+
+* update(2023/6/16) 加入了论文作者的GML损失函数(很感谢)
+
+
+$$\tilde{p}_j^i = \frac{N_j\mathrm{exp}(o_j^i)}{\displaystyle \sum_c^C N_c \mathrm{exp}(o_c^i)}$$
+
+未完待续，先准备6级
