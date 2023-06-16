@@ -8,7 +8,6 @@ from torch.distributions import normal
 
 def get_loss(args, cls_num_list, per_cls_weights):
     # Default Linear
-    print(per_cls_weights)
     if args.loss_type == 'CE':
         criterion = CELoss(weight=per_cls_weights).cuda(
             args.gpu)  # nn.CrossEntropyLoss(weight=per_cls_weights).cuda(args.gpu)
@@ -20,7 +19,7 @@ def get_loss(args, cls_num_list, per_cls_weights):
     elif args.loss_type == 'LDAM':
         criterion = LDAMLoss(cls_num_list=cls_num_list, max_m=0.5, s=30, weight=per_cls_weights).cuda(args.gpu)
     elif args.loss_type == 'GML':
-        criterion = GMLoss(weight=per_cls_weights).cuda(args.gpu)
+        criterion = GML(cls_num_list).cuda(args.gpu)
     else:
         raise NotImplementedError(
             "Error:Loss function {} is not implemented! Please re-choose loss type!".format(args.loss_type))
@@ -41,35 +40,6 @@ class CELoss(nn.Module):
         """
         feat, out = out['feature'], out['score']
         return F.cross_entropy(out, labels, weight=self.weight)
-
-def gm_loss(input_values, targets, weights):
-    w = weights
-    w = w.unsqueeze(0).expand(weights.shape[0], -1)
-    P = F.cross_entropy(input_values,targets,reduction='none',weight=weights)
-    P = torch.exp(-P) # 转换为概率
-
-    C = max(targets) + 1 # 类别的个数
-
-    Class = torch.zeros(C,2)
-    for p,cls in zip(P,targets):
-        Class[cls][1] = Class[cls][1] + 1
-        Class[cls][0] = Class[cls][0] + p
-
-    Sum = torch.tensor(0).type_as(P[0])
-
-    for item in Class:
-        if item[1] > 0:
-            Sum = Sum + torch.log(item[0] / item[1])
-    loss = -Sum / C
-    return loss
-
-class GMLoss(nn.Module):
-    def __init__(self,weight):
-        super(GMLoss, self).__init__()
-        self.weight = weight
-    def forward(self, input, target, curr=None):
-        feat, input = input['feature'], input['score']
-        return gm_loss(input, target, self.weight)
 
 def focal_loss(input_values, gamma):
     """Computes the focal loss"""
@@ -152,3 +122,46 @@ class FeaBalLoss(nn.Module):
             return F.cross_entropy(out, labels, weight=self.weight)
         else:
             return F.cross_entropy(logit, labels, weight=self.weight)
+
+# 感谢作者
+
+class GML(nn.Module):
+    def __init__(self, num_class_list):
+        super().__init__()
+        self.p = 1
+        self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        self.weight = torch.Tensor(num_class_list)
+        if torch.cuda.is_available():
+                self.weight = self.weight.cuda()
+
+    def forward(self, output, target,curr=None):
+        feat,output =  output['feature'],output['score']
+        assert len(target.size()) == 1 # Target should be of 1-Dim
+
+        max_logit = torch.max(output, dim=1, keepdim=True)[0] # of shape N x 1
+        max_logit = max_logit.detach()
+        logits = output - max_logit
+        exp_logits = torch.exp(logits) * self.weight.view(-1, self.weight.shape[0])
+        prob = torch.clamp(exp_logits / exp_logits.sum(1, keepdim=True), min=1e-5, max=1.)
+
+        num_images, num_classes = prob.size()
+
+        ground_class_prob = torch.gather(prob, dim=1, index=target.view(-1, 1))
+        ground_class_prob = ground_class_prob.repeat((1, num_classes))
+
+        mask = torch.zeros((num_images, num_classes), dtype=torch.int64, device=self.device)
+        mask[range(num_images), target] = 1
+        num_images_per_class = torch.sum(mask, dim=0)
+        exist_class_mask = torch.zeros((num_classes,), dtype=torch.int64, device=self.device)
+        exist_class_mask[num_images_per_class != 0] = 1
+
+        num_images_per_class[num_images_per_class == 0] = 1 # avoid the dividing by zero exception
+
+        mean_prob_classes = torch.sum(ground_class_prob * mask, dim=0) / num_images_per_class # of shape (C,)
+        mean_prob_classes[exist_class_mask == 1] = -torch.log(mean_prob_classes[exist_class_mask == 1])
+
+        mean_prob_sum = torch.sum(torch.pow(mean_prob_classes[exist_class_mask == 1], self.p)) / torch.sum(exist_class_mask)
+
+        loss = torch.pow(mean_prob_sum, 1.0 / self.p)
+
+        return loss
