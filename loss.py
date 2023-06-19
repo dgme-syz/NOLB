@@ -23,6 +23,8 @@ def get_loss(args, cls_num_list, per_cls_weights):
         criterion = GML(cls_num_list).cuda(args.gpu)
     elif args.loss_type == 'LADE':
         criterion = LADELoss()
+    elif args.loss_type == 'BSCE':
+        criterion = BalancedSoftmax(cls_num_list)
     else:
         raise NotImplementedError(
             "Error:Loss function {} is not implemented! Please re-choose loss type!".format(args.loss_type))
@@ -220,3 +222,40 @@ class LADELoss(nn.Module):
 
         loss = -torch.sum(estim_loss * self.cls_weight)
         return loss
+
+# import json
+
+
+class BalancedSoftmax(nn.Module):
+    """
+    Balanced Softmax Loss
+    """
+    def __init__(self, num_class_list):
+        super(BalancedSoftmax, self).__init__()
+        self.sample_per_class = torch.tensor(num_class_list)
+
+    def forward(self, input, label, reduction='mean',curr = None):
+        input = input['score']
+        return balanced_softmax_loss(label, input, self.sample_per_class, reduction)
+
+
+def balanced_softmax_loss(labels, logits, sample_per_class, reduction):
+    """Compute the Balanced Softmax Loss between `logits` and the ground truth `labels`.
+    Args:
+      labels: A int tensor of size [batch].
+      logits: A float tensor of size [batch, no_of_classes].
+      sample_per_class: A int tensor of size [no of classes].
+      reduction: string. One of "none", "mean", "sum"
+    Returns:
+      loss: A float tensor. Balanced Softmax Loss.
+    """
+    spc = sample_per_class.type_as(logits)
+    spc = spc.unsqueeze(0).expand(logits.shape[0], -1)
+    logits = logits + spc.log()
+    loss = F.cross_entropy(input=logits, target=labels, reduction=reduction)
+    return loss
+
+
+def create_loss(freq_path):
+    print('Loading Balanced Softmax Loss.')
+    return BalancedSoftmax(freq_path)
