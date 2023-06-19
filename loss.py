@@ -254,8 +254,3 @@ def balanced_softmax_loss(labels, logits, sample_per_class, reduction):
     logits = logits + spc.log()
     loss = F.cross_entropy(input=logits, target=labels, reduction=reduction)
     return loss
-
-
-def create_loss(freq_path):
-    print('Loading Balanced Softmax Loss.')
-    return BalancedSoftmax(freq_path)
