@@ -69,7 +69,7 @@ def main(args):
     '''
     print("=> creating model '{}'".format(args.arch))
     classes_dict = {'cifar10': 10, 'cifar100': 100,}
-    linear_dict = {'ce': 'Default', 'focal': 'Default', 'feabal': 'Default','gml':'Default','lade':'Default', \
+    linear_dict = {'ce': 'Default', 'focal': 'Default', 'feabal': 'Default','gml':'Default','lade':'Default','bsce':'Default', \
                    'noise': 'Noise', \
                    'noiscr': 'Norm', 'noiang': 'Norm', 'ldam': 'Norm'}
     num_classes = classes_dict[args.dataset.lower()]
@@ -171,9 +171,8 @@ def main(args):
 
 
 def train_one_epoch(args, train_loader, model, block, classifier, criterion, optimizer, epoch, log, tf_writer):  #
-    gm = 0
-    hm = 0
-    lr = 0
+    all_batch_correct_per_class = torch.zeros(10,dtype=torch.int64,requires_grad=False)
+    all_batch_per_class = torch.zeros(10,dtype=torch.int64,requires_grad=False)
     batch_time = AverageMeter('Time', ':6.3f')
     data_time = AverageMeter('Data', ':6.3f')
     losses = AverageMeter('Loss', ':.4e')
@@ -213,10 +212,12 @@ def train_one_epoch(args, train_loader, model, block, classifier, criterion, opt
 
             output = output['score']
 
-            gm,hm,lr = GM_HM_LR(output,targets_a)
-            acc1_a, acc5_a = accuracy(output, targets_a, topk=(1, 5))
-            acc1_b, acc5_b = accuracy(output, targets_b, topk=(1, 5))
+            (acc1_a, acc5_a), batch_per_correct_a  = accuracy(output, targets_a, topk=(1, 5))
+            (acc1_b, acc5_b), batch_per_correct_b = accuracy(output, targets_b, topk=(1, 5))
             acc1, acc5 = lam * acc1_a + (1 - lam) * acc1_b, lam * acc5_a + (1 - lam) * acc5_b
+            batch_per_correct = lam * batch_per_correct + (1 - lam) * batch_per_correct
+            all_batch_correct_per_class += batch_per_correct[0]
+            all_batch_per_class += batch_per_correct[1]
         else:
             output = model(input, get_feat=True)
 
@@ -224,8 +225,9 @@ def train_one_epoch(args, train_loader, model, block, classifier, criterion, opt
 
             output = output['score']
 
-            gm,hm,lr = GM_HM_LR(output,target)
-            acc1, acc5 = accuracy(output, target, topk=(1, 5))
+            (acc1, acc5),batch_per_correct = accuracy(output, target, topk=(1, 5))
+            all_batch_correct_per_class += batch_per_correct[0]
+            all_batch_per_class += batch_per_correct[1]
 
         # measure accuracy and record loss
         losses.update(loss.item(), input.size(0))
@@ -241,22 +243,8 @@ def train_one_epoch(args, train_loader, model, block, classifier, criterion, opt
         batch_time.update(time.time() - end)
         end = time.time()
 
-        # if i % args.print_freq == 0:
-        #     output = ('Epoch: [{0}][{1}/{2}], lr: {lr:.5f}\t'
-        #               #'Time: {batch_time.val:.3f} ({batch_time.avg:.3f})\t'
-        #               #'Data: {data_time.val:.3f} ({data_time.avg:.3f})\t'
-        #               'Total Loss: {loss.val:.4f} ({loss.avg:.4f})\t'
-        #               'Prec@1 {top1.val:.3f} ({top1.avg:.3f})\t'
-        #               'Prec@5 {top5.val:.3f} ({top5.avg:.3f})'.format(
-        #                epoch, i, len(train_loader), lr=optimizer.param_groups[-1]['lr'],
-        #                loss=losses,
-        #                top1=top1,
-        #                top5=top5))
-        #     print(output)
-        #     log.write(output + '\n')
-        #     log.flush()
-
-    output = ('\nEpoch [{0}/{1}]: lr: {lr:.5f}\t'
+    GM,HM,LR = GM_HM_LR(all_batch_correct_per_class,all_batch_per_class)
+    output = ('Epoch [{0}/{1}]: lr: {lr:.5f}\t'
     # 'Time: {batch_time.val:.3f} ({batch_time.avg:.3f})\t'
     # 'Data: {data_time.val:.3f} ({data_time.avg:.3f})\t'
               'Total Loss: {loss.avg:.4f}\t'
@@ -270,13 +258,15 @@ def train_one_epoch(args, train_loader, model, block, classifier, criterion, opt
         loss=losses,
         top1=top1,
         top5=top5,
-        GM=gm,
-        HM=hm,
-        LR=lr))
+        GM=GM,
+        HM=HM,
+        LR=LR))
 
     print(output)
-    log.write(output + '\n')
-    log.flush()
+    if log is not None:
+        log.write(output + '\n')
+        # log.write(out_cls_acc + '\n')
+        log.flush()
 
     tf_writer.add_scalar('loss/train', losses.avg, epoch)
     tf_writer.add_scalar('acc/train_top1', top1.avg, epoch)
@@ -286,9 +276,8 @@ def train_one_epoch(args, train_loader, model, block, classifier, criterion, opt
 
 def validate_one_epoch(args, val_loader, model, block, classifier, criterion, epoch, log=None, tf_writer=None,
                        flag='Val'):
-    gm = 0
-    hm = 0
-    lr = 0
+    all_batch_correct_per_class = torch.zeros(10, dtype=torch.int64, requires_grad=False)
+    all_batch_per_class = torch.zeros(10, dtype=torch.int64, requires_grad=False)
     batch_time = AverageMeter('Time', ':6.3f')
     losses = AverageMeter('Loss', ':.4e')
     top1 = AverageMeter('Acc@1', ':6.2f')
@@ -315,9 +304,10 @@ def validate_one_epoch(args, val_loader, model, block, classifier, criterion, ep
             output = output['score']
 
             # measure accuracy and record loss
-            gm, hm, lr = GM_HM_LR(output, target)
 
-            acc1, acc5 = accuracy(output, target, topk=(1, 5))
+            (acc1, acc5),batch_per_correct = accuracy(output, target, topk=(1, 5))
+            all_batch_correct_per_class += batch_per_correct[0]
+            all_batch_per_class += batch_per_correct[1]
             losses.update(loss.item(), input.size(0))
             top1.update(acc1[0], input.size(0))
             top5.update(acc5[0], input.size(0))
@@ -330,31 +320,7 @@ def validate_one_epoch(args, val_loader, model, block, classifier, criterion, ep
             all_preds.extend(pred.cpu().numpy())
             all_targets.extend(target.cpu().numpy())
 
-            # if i % args.print_freq == 0:
-            #     output = ('Test: [{0}/{1}]\t'
-            #               'Time {batch_time.val:.3f} ({batch_time.avg:.3f})\t'
-            #               'Loss {loss.val:.4f} ({loss.avg:.4f})\t'
-            #               'Prec@1 {top1.val:.3f} ({top1.avg:.3f})\t'
-            #               'Prec@5 {top5.val:.3f} ({top5.avg:.3f})'.format(
-            #                i, len(val_loader),
-            #                batch_time=batch_time,
-            #                loss=losses,
-            #                top1=top1,
-            #                top5=top5))
-            #     print(output)
-
-        # output = ('Test: [{0}/{1}]\t'
-        #             'Time {batch_time.avg:.3f}\t'
-        #             'Loss {loss.avg:.4f}\t'
-        #             'Prec@1 {top1.avg:.3f}\t'
-        #             'Prec@5 {top5.avg:.3f}'.format(
-        #             epoch, args.epochs,
-        #             batch_time=batch_time,
-        #             loss=losses,
-        #             top1=top1,
-        #             top5=top5))
-        # print(output)
-
+        GM, HM, LR = GM_HM_LR(all_batch_correct_per_class, all_batch_per_class)
         # confusion_matrix
         cf = confusion_matrix(all_targets, all_preds).astype(float)
         cls_cnt = cf.sum(axis=1)
@@ -367,7 +333,7 @@ def validate_one_epoch(args, val_loader, model, block, classifier, criterion, ep
                   'GM {GM:.3f}\t'
                   'HM {HM:.3f}\t'
                   'LR {LR:.3f}\n'
-                  .format(epoch, args.epochs, flag=flag, loss=losses, top1=top1, top5=top5,GM=gm,HM=hm,LR=lr))
+                  .format(epoch, args.epochs, flag=flag, loss=losses, top1=top1, top5=top5,GM=GM,HM=HM,LR=LR))
         # out_cls_acc = '%s Class Accuracy: %s'%(flag, (np.array2string(cls_acc, separator=',', formatter={'float_kind':lambda x: "%.3f" % x})))
         print(output)
         # print(out_cls_acc)
@@ -395,7 +361,7 @@ if __name__ == '__main__':
     parser.add_argument('--img_path', default='/home/datasets/Places365', type=str, help='input image path')
 
     parser.add_argument('--imb_type', default="exp", type=str, help='imbalance type')
-    parser.add_argument('--train_rule', default='BalancedRW', type=str, help='data sampling strategy for train loader')
+    parser.add_argument('--train_rule', default='None', type=str, help='data sampling strategy for train loader')
     parser.add_argument('--mixup', default=False, type=bool, help='if use mix-up')
 
     parser.add_argument('--print_freq', '-p', default=10, type=int, metavar='N', help='print frequency (default: 10)')
@@ -421,7 +387,7 @@ if __name__ == '__main__':
     parser.add_argument('--exp_str', default='bs512_lr002_110', type=str,
                         help='number to indicate which experiment it is')  # bs128
 
-    parser.add_argument('--loss_type', default="LADE", type=str, help='loss type')  # LDAM CE FeaBal
+    parser.add_argument('--loss_type', default="BSCE", type=str, help='loss type')  # LDAM CE FeaBal
     parser.add_argument('--imb_factor', default=0.01, type=float,
                         help='imbalance factor, Imbalance ratio: 0.01->100; 0.02->50')
     parser.add_argument('--batch_size', '-b', default=64, type=int, metavar='N', help='mini-batch size')
