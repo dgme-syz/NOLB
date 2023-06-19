@@ -5,6 +5,7 @@ import os
 import numpy as np
 import matplotlib
 import matplotlib.pyplot as plt
+from collections import Counter
 from sklearn.metrics import confusion_matrix
 from sklearn.utils.multiclass import unique_labels
 import math
@@ -129,10 +130,14 @@ def accuracy(output, target, topk=(1,)):
 
 
         res = []
+        cls = []
+
+        cls.append(torch.bincount(target,weights=correct[0,:],minlength=10).to(torch.int64))
+        cls.append(torch.bincount(target,weights=torch.ones(batch_size),minlength=10).to(torch.int64))
         for k in topk:
             correct_k = correct[:k].contiguous().view(-1).float().sum(0, keepdim=True)
             res.append(correct_k.mul_(100.0 / batch_size))
-        return res
+        return res,cls
 
 
 def adjust_learning_rate(args, optimizer, epoch):
@@ -240,35 +245,32 @@ def plot_confusion_matrix(y_true, y_pred, classes,
     fig.tight_layout()
     return ax
 
-def GM_HM_LR(output,target):
-    with torch.no_grad():
-        batch_size = target.size(0)
+def calculate_prior(num_classes, img_max=None, prior=None, prior_txt=None, reverse=False, return_num=False):
+    if prior_txt:
+        labels = []
+        with open(prior_txt) as f:
+            for line in f:
+                labels.append(int(line.split()[1]))
+        occur_dict = dict(Counter(labels))
+        img_num_per_cls = [occur_dict[i] for i in range(num_classes)]
+    else:
+        img_num_per_cls = []
+        for cls_idx in range(num_classes):
+            if reverse:
+                num = img_max * (prior ** ((num_classes - 1 - cls_idx) / (num_classes - 1.0)))
+            else:
+                num = img_max * (prior ** (cls_idx / (num_classes - 1.0)))
+            img_num_per_cls.append(int(num))
+    img_num_per_cls = torch.Tensor(img_num_per_cls)
 
-        _, pred = output.topk(1, 1, True, True)
-        pred = pred.t()
-        correct = pred.eq(target.view(1, -1).expand_as(pred))
+    if return_num:
+        return img_num_per_cls
+    else:
+        return img_num_per_cls / img_num_per_cls.sum()
 
-        C = max(target) + 1
-        Cl = np.zeros((C,2))
-
-        #print(correct)
-
-        for out,cls in zip(correct[0],target):
-            Cl[cls][0] += 1
-            Cl[cls][1] += out
-
-        GM = 1
-        HM = 0
-        LR = 1
-
-        for item in Cl:
-            gm = item[1] / max(item[0],1e-3)
-            if gm > 0:
-                GM *= gm
-
-            hm = item[0] / max(item[1],1e-3)
-            HM += hm
-            LR = min(LR,item[1] / max(item[0],1e-3))
-        HM = C / HM
-        GM = pow(GM,1 / C)
-        return GM,HM,LR
+def GM_HM_LR(correct_per_class,all_per_class):
+    recall = torch.clamp(correct_per_class / all_per_class,min=1e-3)
+    GM = torch.pow(torch.prod(recall),0.1)#10个类别
+    HM = 10/torch.sum(1/recall)
+    LR = torch.min(recall)
+    return GM,HM,LR
