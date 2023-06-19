@@ -2,7 +2,7 @@
 旨在实现[论文](https://arxiv.org/abs/2303.03630)中的代码细节，以完成ML课设
 
 ## 环境
-* python = 3.10
+* python = 3.10(使用anaconda，请注意不要将其安装在名路径带空格的文件夹)
 
 ```
 conda create -n ML python==3.10
