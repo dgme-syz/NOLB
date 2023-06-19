@@ -69,7 +69,7 @@ def main(args):
     '''
     print("=> creating model '{}'".format(args.arch))
     classes_dict = {'cifar10': 10, 'cifar100': 100,}
-    linear_dict = {'ce': 'Default', 'focal': 'Default', 'feabal': 'Default','gml':'Default', \
+    linear_dict = {'ce': 'Default', 'focal': 'Default', 'feabal': 'Default','gml':'Default','lade':'Default', \
                    'noise': 'Noise', \
                    'noiscr': 'Norm', 'noiang': 'Norm', 'ldam': 'Norm'}
     num_classes = classes_dict[args.dataset.lower()]
@@ -181,12 +181,7 @@ def train_one_epoch(args, train_loader, model, block, classifier, criterion, opt
     top5 = AverageMeter('Acc@5', ':6.2f')
 
     # switch to train mode
-    if args.dataset.lower() != 'place365':
-        model.train()
-    else:
-        model.eval()
-        block.train()
-        classifier.train()
+    model.train()
 
     end = time.time()
 
@@ -261,7 +256,7 @@ def train_one_epoch(args, train_loader, model, block, classifier, criterion, opt
         #     log.write(output + '\n')
         #     log.flush()
 
-    output = ('Epoch [{0}/{1}]: lr: {lr:.5f}\t'
+    output = ('\nEpoch [{0}/{1}]: lr: {lr:.5f}\t'
     # 'Time: {batch_time.val:.3f} ({batch_time.avg:.3f})\t'
     # 'Data: {data_time.val:.3f} ({data_time.avg:.3f})\t'
               'Total Loss: {loss.avg:.4f}\t'
@@ -301,9 +296,6 @@ def validate_one_epoch(args, val_loader, model, block, classifier, criterion, ep
 
     # switch to evaluate mode
     model.eval()
-    if args.dataset.lower() == 'place365':
-        block.eval()
-        classifier.eval()
 
     all_preds = []
     all_targets = []
@@ -316,11 +308,7 @@ def validate_one_epoch(args, val_loader, model, block, classifier, criterion, ep
                 target = target.cuda(args.gpu, non_blocking=True)
 
             # compute output
-            if args.dataset.lower() != 'place365':
-                output = model(input, get_feat=True)
-            else:
-                feat = block(model(input))
-                output = classifier(feat, get_feat=True)
+            output = model(input, get_feat=True)
 
             loss = criterion(output, target)
 
@@ -433,7 +421,7 @@ if __name__ == '__main__':
     parser.add_argument('--exp_str', default='bs512_lr002_110', type=str,
                         help='number to indicate which experiment it is')  # bs128
 
-    parser.add_argument('--loss_type', default="FeaBal", type=str, help='loss type')  # LDAM CE FeaBal
+    parser.add_argument('--loss_type', default="LADE", type=str, help='loss type')  # LDAM CE FeaBal
     parser.add_argument('--imb_factor', default=0.01, type=float,
                         help='imbalance factor, Imbalance ratio: 0.01->100; 0.02->50')
     parser.add_argument('--batch_size', '-b', default=64, type=int, metavar='N', help='mini-batch size')
