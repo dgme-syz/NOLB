@@ -4,3 +4,4 @@ torchvision==0.15.2
 matplotlib==3.7.1
 tensorboardX==2.6
 pathlib2==2.3.7.post1
+gradio==3.34.0
