@@ -20,6 +20,10 @@ from tensorboardX import SummaryWriter
 from sklearn.metrics import confusion_matrix
 from pathlib2 import Path
 
+from matplotlib import pyplot as plt
+from matplotlib.pyplot import figure
+import matplotlib.mlab as mlab
+
 import models
 from loss import get_loss
 from dataset.dataset import get_dataset
@@ -28,6 +32,15 @@ from utils import AverageMeter, mixup_criterion, mixup_data, prepare_folders, sa
     adjust_learning_rate, set_color, GM_HM_LR
 from tqdm import tqdm
 
+
+list_train_GM = []
+list_train_Prec = []
+list_train_HM = []
+list_train_LR = []
+list_test_GM = []
+list_test_Prec = []
+list_test_HM = []
+list_test_LR = []
 
 def main(args):
     store_name = prepare_folders(args)
@@ -138,6 +151,9 @@ def main(args):
     '''
         Step 6: Epochs Training
     '''
+
+
+
     for epoch in range(args.start_epoch, args.epochs):
         # Note that different dataset may have different decay strategy
         adjust_learning_rate(args, optimizer, epoch)
@@ -169,6 +185,137 @@ def main(args):
         log_testing.write(output_best + '\n')
         log_testing.flush()
 
+    '''
+        Step 7: Drawing Figures
+    '''
+
+    # list_x = list(range(args.start_epoch, args.epochs))
+    list_x_np = np.arange(args.start_epoch, args.epochs, 1)
+
+    upper = 85
+    lower = 65
+    epoch_num = args.epochs - args.start_epoch
+    array_upper = np.ones(epoch_num,dtype=int) * upper
+    array_lower = np.ones(epoch_num,dtype=int) * lower
+    list_train_Prec_np = np.array(list_train_Prec)
+    supper = np.ma.masked_where(list_train_Prec_np < upper, list_train_Prec_np)
+    slower = np.ma.masked_where(list_train_Prec_np > lower, list_train_Prec_np)
+    smiddle = np.ma.masked_where((list_train_Prec_np < lower) | (list_train_Prec_np > upper), list_train_Prec_np)
+    fig, axs = plt.subplots(1,2)
+
+
+    axs[0].plot(list_x_np, smiddle, 'r-', list_x_np, slower, 'b-', list_x_np, supper, 'g-', list_x_np, array_upper, 'k--', list_x_np, array_lower, 'k--')
+    axs[0].set_title("Train_Prec@1")
+    axs[0].set_xlabel('Epoch')
+    #axs[0].grid(True)
+
+    upper = 60
+    lower = 40
+    array_upper = np.ones(epoch_num, dtype=int) * upper
+    array_lower = np.ones(epoch_num, dtype=int) * lower
+    list_test_Prec_np = np.array(list_test_Prec)
+    supper = np.ma.masked_where(list_test_Prec_np < upper, list_test_Prec_np)
+    slower = np.ma.masked_where(list_test_Prec_np > lower, list_test_Prec_np)
+    smiddle = np.ma.masked_where((list_test_Prec_np < lower) | (list_test_Prec_np > upper), list_test_Prec_np)
+    axs[1].plot(list_x_np, smiddle, 'r-', list_x_np, slower, 'b-', list_x_np, supper, 'g-', list_x_np, array_upper, 'k--', list_x_np, array_lower, 'k--')
+    axs[1].set_title("Test_Prec@1")
+    axs[1].set_xlabel('Epoch')
+    #axs[1].grid(True)
+    fig.set_size_inches(16, 5)
+    plt.savefig('./Prec@1.png',dpi=1000)
+    plt.clf()
+
+    fig1, axs1 = plt.subplots(1, 2)
+    list_train_GM_np = np.array(list_train_GM)
+    axs1[0].plot(list_x_np, list_train_GM_np)
+    axs1[0].set_title("Train_GM")
+    axs1[0].set_xlabel('Epoch')
+    axs1[0].grid(True)
+    list_test_GM_np = np.array(list_test_GM)
+    axs1[1].plot(list_x_np, list_test_GM_np)
+    axs1[1].set_title("Test_GM")
+    axs1[1].set_xlabel('Epoch')
+    axs1[1].grid(True)
+    fig1.set_size_inches(16, 5)
+    plt.savefig('./GM.png', dpi=1000)
+    plt.clf()
+
+    fig2, axs2 = plt.subplots(1, 2)
+    list_train_HM_np = np.array(list_train_HM)
+    axs2[0].plot(list_x_np, list_train_HM_np)
+    axs2[0].set_title("Train_HM")
+    axs2[0].set_xlabel('Epoch')
+    axs2[0].grid(True)
+    list_test_HM_np = np.array(list_test_HM)
+    axs2[1].plot(list_x_np, list_test_HM_np)
+    axs2[1].set_title("Test_HM")
+    axs2[1].set_xlabel('Epoch')
+    axs2[1].grid(True)
+    fig2.set_size_inches(16, 5)
+    plt.savefig('./HM.png', dpi=1000)
+    plt.clf()
+
+    fig3, axs3 = plt.subplots(1, 2)
+    list_train_LR_np = np.array(list_train_LR)
+    axs3[0].plot(list_x_np, list_train_LR_np)
+    axs3[0].set_title("Train_LR")
+    axs3[0].set_xlabel('Epoch')
+    axs3[0].grid(True)
+    list_test_LR_np = np.array(list_test_LR)
+    axs3[1].plot(list_x_np, list_test_LR_np)
+    axs3[1].set_title("Test_LR")
+    axs3[1].set_xlabel('Epoch')
+    axs3[1].grid(True)
+    fig3.set_size_inches(16, 5)
+    plt.savefig('./LR.png', dpi=1000)
+    plt.clf()
+
+'''
+    plt.plot(list_x, list_train_GM, color='blue', label='GM')
+    plt.xlabel("Epochs")
+    plt.title("Train_GM")
+    plt.savefig('./Train_GM.png',dpi=1000)
+    plt.clf()
+
+    plt.plot(list_x, list_train_HM, color='green', label='HM')
+    plt.xlabel("Epochs")
+    plt.title("Train_HM")
+    plt.savefig('./Train_HM.png',dpi=1000)
+    plt.clf()
+
+    plt.plot(list_x, list_train_LR, color='black', label='LR')
+    plt.xlabel("Epochs")
+    plt.title("Train_LR")
+    plt.savefig('./Train_LR.png',dpi=1000)
+    plt.clf()
+
+
+
+
+    plt.plot(list_x, list_test_GM, color='blue', label='GM')
+    plt.xlabel("Epochs")
+    plt.title("Test_GM")
+    plt.savefig('./Test_GM.png', dpi=1000)
+    plt.clf()
+
+    plt.plot(list_x, list_test_HM, color='green', label='HM')
+    plt.xlabel("Epochs")
+    plt.title("Test_HM")
+    plt.savefig('./Test_HM.png', dpi=1000)
+    plt.clf()
+
+    plt.plot(list_x, list_test_LR, color='black', label='LR')
+    plt.xlabel("Epochs")
+    plt.title("Test_LR")
+    plt.savefig('./Test_LR.png', dpi=1000)
+    plt.clf()
+
+    plt.plot(list_x, list_test_Prec, color='red', label='Prec@1')
+    plt.xlabel("Epochs")
+    plt.title("Test_Prec@1")
+    plt.savefig('./Test_Prec@1.png', dpi=1000)
+'''
+
 
 def train_one_epoch(args, train_loader, model, block, classifier, criterion, optimizer, epoch, log, tf_writer):  #
     all_batch_correct_per_class = torch.zeros(10,dtype=torch.int64,requires_grad=False)
@@ -194,7 +341,7 @@ def train_one_epoch(args, train_loader, model, block, classifier, criterion, opt
     '''
     # curr = (args.epochs-epoch)/args.epochs                 #linear. First tail, then head
     # curr = epoch/args.epochs                               #linear. First head, then tail
-    curr = (epoch / (args.epochs - 10)) ** 2  # parabolic increase
+    #curr = (epoch / (args.epochs - 10)) ** 2  # parabolic increase
     # curr = 1- math.cos(epoch / args.epochs * math.pi /2)   # cosine increase
     # curr = math.sin(epoch / args.epochs * math.pi /2)      # sine increase
     # curr = (1 - (epoch / args.epochs) ** 2) * 1            # parabolic increment
@@ -213,7 +360,7 @@ def train_one_epoch(args, train_loader, model, block, classifier, criterion, opt
             images, targets_a, targets_b, lam = mixup_data(input, target)
             output = model(images, get_feat=True)
 
-            loss = mixup_criterion(criterion, output, targets_a, targets_b, lam, curr=curr)
+            loss = mixup_criterion(criterion, output, targets_a, targets_b, lam, curr=None)
 
             output = output['score']
 
@@ -226,7 +373,7 @@ def train_one_epoch(args, train_loader, model, block, classifier, criterion, opt
         else:
             output = model(input, get_feat=True)
 
-            loss = criterion(output, target, curr=curr)
+            loss = criterion(output, target, curr=None)
 
             output = output['score']
 
@@ -249,6 +396,12 @@ def train_one_epoch(args, train_loader, model, block, classifier, criterion, opt
         end = time.time()
 
     GM,HM,LR = GM_HM_LR(all_batch_correct_per_class,all_batch_per_class)
+
+    list_train_GM.append(GM.item())
+    list_train_HM.append(HM.item())
+    list_train_LR.append(LR.item())
+    list_train_Prec.append(top1.avg.item())
+
     output = ('Epoch [{0}/{1}]: lr: {lr:.5f}\t'
     # 'Time: {batch_time.val:.3f} ({batch_time.avg:.3f})\t'
     # 'Data: {data_time.val:.3f} ({data_time.avg:.3f})\t'
@@ -336,6 +489,12 @@ def validate_one_epoch(args, val_loader, model, block, classifier, criterion, ep
         cls_cnt = cf.sum(axis=1)
         cls_hit = np.diag(cf)
         cls_acc = cls_hit / cls_cnt
+
+        list_test_GM.append(GM.item())
+        list_test_HM.append(HM.item())
+        list_test_LR.append(LR.item())
+        list_test_Prec.append(top1.avg.item())
+
         output = ('{flag} Results [{0}/{1}]: '
                   'Loss {loss.avg:.5f}\t'
                   'Prec@1 {top1.avg:.3f}\t'
