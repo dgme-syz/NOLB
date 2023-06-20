@@ -1,6 +1,11 @@
 import gradio as gr
 import argparse
+
+import gradio.themes
+
 from train import main
+import matplotlib.pyplot as plt
+
 inputs = [
     gr.inputs.Dropdown(choices=['cifar10', 'cifar100', 'imagenet', 'inat', 'place365'], label='Dataset', default='cifar10'),
     gr.inputs.Textbox(label='Data Path', default='./dataset/data_img'),
@@ -67,9 +72,15 @@ def analyze_arguments(*input_values):
 
     main(args)
     # 返回更新后的args对象
-    return vars(args)
+    return vars(args),"C:\\Users\\duke hang\\Documents\\Tencent Files\\1928161381\\FileRecv\\Train_Prec@1.png","C:\\Users\\duke hang\\Documents\\Tencent Files\\1928161381\\FileRecv\\Train_GM.png","C:\\Users\\duke hang\\Documents\\Tencent Files\\1928161381\\FileRecv\\Train_HM.png","C:\\Users\\duke hang\\Documents\\Tencent Files\\1928161381\\FileRecv\\Train_LR.png"
 
 if __name__ == '__main__':
-    outputs = gr.outputs.Textbox(label="args")
-    interface = gr.Interface(fn=analyze_arguments, inputs=inputs, outputs=outputs, title='WebUI')
+    outputs = [
+        gr.outputs.Textbox(label="args"),
+        gr.outputs.Image(type='filepath',label="Pretop1"),
+        gr.outputs.Image(type='filepath', label="GM"),
+        gr.outputs.Image(type='filepath', label="HM"),
+        gr.outputs.Image(type='filepath', label="LR")
+    ]
+    interface = gr.Interface(fn=analyze_arguments, inputs=inputs, outputs=outputs, title='WebUI',theme=gr.themes.Soft(primary_hue="orange", secondary_hue="blue",neutral_hue = "green",font="GoogleFont"))
     interface.launch()
