@@ -127,13 +127,21 @@ def accuracy(output, target, topk=(1,)):
         _, pred = output.topk(maxk, 1, True, True)
         pred = pred.t()
         correct = pred.eq(target.view(1, -1).expand_as(pred))
-
+        one_weights = torch.ones(batch_size)
+        if torch.cuda.is_available():
+            correct = correct.cuda()
+            one_weights = one_weights.cuda()
 
         res = []
         cls = []
 
-        cls.append(torch.bincount(target,weights=correct[0,:],minlength=10).to(torch.int64))
-        cls.append(torch.bincount(target,weights=torch.ones(batch_size),minlength=10).to(torch.int64))
+        cls1 = torch.bincount(target,weights=correct[0,:],minlength=10).to(torch.int64)
+        cls2 = torch.bincount(target,weights=one_weights,minlength=10).to(torch.int64)
+        if torch.cuda.is_available():
+            cls1 = cls1.cuda()
+            cls2 = cls2.cuda()
+        cls.append(cls1)
+        cls.append(cls2)
         for k in topk:
             correct_k = correct[:k].contiguous().view(-1).float().sum(0, keepdim=True)
             res.append(correct_k.mul_(100.0 / batch_size))

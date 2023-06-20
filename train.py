@@ -173,6 +173,11 @@ def main(args):
 def train_one_epoch(args, train_loader, model, block, classifier, criterion, optimizer, epoch, log, tf_writer):  #
     all_batch_correct_per_class = torch.zeros(10,dtype=torch.int64,requires_grad=False)
     all_batch_per_class = torch.zeros(10,dtype=torch.int64,requires_grad=False)
+
+    if torch.cuda.is_available():
+        all_batch_correct_per_class = all_batch_correct_per_class.cuda()
+        all_batch_per_class = all_batch_per_class.cuda()
+
     batch_time = AverageMeter('Time', ':6.3f')
     data_time = AverageMeter('Data', ':6.3f')
     losses = AverageMeter('Loss', ':.4e')
@@ -278,6 +283,11 @@ def validate_one_epoch(args, val_loader, model, block, classifier, criterion, ep
                        flag='Val'):
     all_batch_correct_per_class = torch.zeros(10, dtype=torch.int64, requires_grad=False)
     all_batch_per_class = torch.zeros(10, dtype=torch.int64, requires_grad=False)
+
+    if torch.cuda.is_available():
+        all_batch_correct_per_class = all_batch_correct_per_class.cuda()
+        all_batch_per_class = all_batch_per_class.cuda()
+
     batch_time = AverageMeter('Time', ':6.3f')
     losses = AverageMeter('Loss', ':.4e')
     top1 = AverageMeter('Acc@1', ':6.2f')
