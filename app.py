@@ -154,7 +154,7 @@ with app:
             input_arch = gr.Dropdown(choices=['resnet20', 'resnet32','resnet44'], label='Model Architecture', value='resnet32')
             input_model = gr.Dropdown(choices=existed_models,label='Load Model')
             output_class = gr.Label(num_top_classes=10)
-            interface = gr.Button("Interface", variant="primary")
+            interface = gr.Button("Inference", variant="primary")
         interface.click(fn=predict,inputs=[input_image,input_model,input_arch],outputs=output_class)
 
 app.launch()
