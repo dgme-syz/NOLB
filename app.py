@@ -12,8 +12,8 @@ from train import main
 
 if os.path.exists('.\\models\\pretrained') == False:
     os.makedirs(name='.\\models\\pretrained', exist_ok=True)
-if os.path.exists('./Trained_Model') == False:
-    os.makedirs(name='./Trained_Model',exist_ok=True)
+if os.path.exists('.\\Trained_Model') == False:
+    os.makedirs(name='.\\Trained_Model',exist_ok=True)
 
 folder_path = '.\\models\\pretrained'
 model_file = os.listdir(folder_path)
