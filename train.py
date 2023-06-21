@@ -346,7 +346,7 @@ def train_one_epoch(args, train_loader, oldmodel, model, block, classifier, crit
     '''
     # curr = (args.epochs-epoch)/args.epochs                 #linear. First tail, then head
     # curr = epoch/args.epochs                               #linear. First head, then tail
-    #curr = (epoch / (args.epochs - 10)) ** 2  # parabolic increase
+    curr = (epoch / (args.epochs - 10.1)) ** 2  # parabolic increase
     # curr = 1- math.cos(epoch / args.epochs * math.pi /2)   # cosine increase
     # curr = math.sin(epoch / args.epochs * math.pi /2)      # sine increase
     # curr = (1 - (epoch / args.epochs) ** 2) * 1            # parabolic increment
@@ -365,7 +365,7 @@ def train_one_epoch(args, train_loader, oldmodel, model, block, classifier, crit
             images, targets_a, targets_b, lam = mixup_data(input, target)
             output = model(images, get_feat=True)
 
-            loss = mixup_criterion(criterion, output, targets_a, targets_b, lam, curr=None)
+            loss = mixup_criterion(criterion, output, targets_a, targets_b, lam, curr=curr)
 
             output = output['score']
 
@@ -381,7 +381,7 @@ def train_one_epoch(args, train_loader, oldmodel, model, block, classifier, crit
         else:
             output = model(input, get_feat=True)
 
-            loss = criterion(output, target, curr=None)
+            loss = criterion(output, target, curr=curr)
 
             output = output['score']
             output_old = oldmodel(input, get_feat=False) if args.pretrained and args.ensemble else None

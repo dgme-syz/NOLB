@@ -21,7 +21,7 @@ def get_loss(args, cls_num_list, per_cls_weights):
         criterion = LDAMLoss(cls_num_list=cls_num_list, max_m=0.5, s=30, weight=per_cls_weights).cuda(args.gpu)
     elif args.loss_type == 'GML':
         criterion = GML(cls_num_list).cuda(args.gpu)
-    elif args.loss_type == 'LADE':
+    elif args.loss_type == 'Lade':
         criterion = LADELoss()
     elif args.loss_type == 'BSCE':
         criterion = BalancedSoftmax(cls_num_list)
@@ -37,7 +37,7 @@ class CELoss(nn.Module):
         super(CELoss, self).__init__()
         self.weight = weight
 
-    def forward(self, out, labels, curr=0):
+    def forward(self, out, labels, curr=None):
         """
         Args:
             out: dict out['feat'], embedding; out['score'], logit
@@ -80,7 +80,8 @@ class LDAMLoss(nn.Module):
         self.weight = weight
 
     def forward(self, x, target, curr=None):
-        index = torch.zeros_like(x, dtype=torch.uint8)
+        x = x['score']
+        index = torch.zeros_like(x, dtype=torch.bool)
         index.scatter_(1, target.data.view(-1, 1), 1)  # one-hot
 
         index_float = index.type(torch.FloatTensor)
@@ -112,12 +113,14 @@ class FeaBalLoss(nn.Module):
 
         self.gamma = gamma
 
-    def forward(self, out, labels, curr=0):
+    def forward(self, out, labels, curr=None):
         """
         Args:
             out: dict out['feat'], embedding; out['score'], logit
             labels: ground truth labels with shape (batch_size).
         """
+        if curr == None:
+            curr = 0.0
         feat, out = out['feature'], out['score']
         feat_norm = torch.norm(feat, dim=1).unsqueeze(1).repeat([1, len(self.lam_list)])
 
@@ -208,7 +211,7 @@ class LADELoss(nn.Module):
         reg = (second_term ** 2) * self.remine_lambda
         return loss - reg, first_term, second_term
 
-    def forward(self, y_pred, target, q_pred=None,curr=None):
+    def forward(self, y_pred, target, curr=None):
         """
         y_pred: N x C
         target: N
