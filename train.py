@@ -90,7 +90,10 @@ def main(args):
     classifier = True  # whether our network has classifier layer
     model = models.__dict__[args.arch](num_classes=num_classes, classifier=classifier,
                                        linear_type=linear_dict[args.loss_type.lower()], \
-                                       pretrained=False)
+                                       pretrained=args.pretrained, pretrained_path=args.pretrained_path)
+    # record old model
+    oldmodel = model
+
     block = None
     classifier = None
     if torch.cuda.is_available():
@@ -157,9 +160,9 @@ def main(args):
     for epoch in range(args.start_epoch, args.epochs):
         # Note that different dataset may have different decay strategy
         adjust_learning_rate(args, optimizer, epoch)
-        train_one_epoch(args, train_loader, model, block, classifier, criterion, optimizer, epoch, log_training,
+        train_one_epoch(args, train_loader, oldmodel, model, block, classifier, criterion, optimizer, epoch, log_training,
                         tf_writer)
-        acc1, val_loss = validate_one_epoch(args, val_loader, model, block, classifier, criterion, epoch, log_testing,
+        acc1, val_loss = validate_one_epoch(args, val_loader, oldmodel, model, block, classifier, criterion, epoch, log_testing,
                                             tf_writer)
 
         # scheduler.step(val_loss)
@@ -209,6 +212,8 @@ def main(args):
     axs[0].set_xlabel('Epoch')
     #axs[0].grid(True)
 
+    os.makedirs('./results',exist_ok=True)
+
     upper = 60
     lower = 40
     array_upper = np.ones(epoch_num, dtype=int) * upper
@@ -222,7 +227,7 @@ def main(args):
     axs[1].set_xlabel('Epoch')
     #axs[1].grid(True)
     fig.set_size_inches(16, 5)
-    plt.savefig('./Prec@1.png',dpi=1000)
+    plt.savefig('./results/Prec@1.png',dpi=1000)
     plt.clf()
 
     fig1, axs1 = plt.subplots(1, 2)
@@ -237,7 +242,7 @@ def main(args):
     axs1[1].set_xlabel('Epoch')
     axs1[1].grid(True)
     fig1.set_size_inches(16, 5)
-    plt.savefig('./GM.png', dpi=1000)
+    plt.savefig('./results/GM.png', dpi=1000)
     plt.clf()
 
     fig2, axs2 = plt.subplots(1, 2)
@@ -252,7 +257,7 @@ def main(args):
     axs2[1].set_xlabel('Epoch')
     axs2[1].grid(True)
     fig2.set_size_inches(16, 5)
-    plt.savefig('./HM.png', dpi=1000)
+    plt.savefig('./results/HM.png', dpi=1000)
     plt.clf()
 
     fig3, axs3 = plt.subplots(1, 2)
@@ -267,7 +272,7 @@ def main(args):
     axs3[1].set_xlabel('Epoch')
     axs3[1].grid(True)
     fig3.set_size_inches(16, 5)
-    plt.savefig('./LR.png', dpi=1000)
+    plt.savefig('./results/LR.png', dpi=1000)
     plt.clf()
 
 '''
@@ -317,7 +322,7 @@ def main(args):
 '''
 
 
-def train_one_epoch(args, train_loader, model, block, classifier, criterion, optimizer, epoch, log, tf_writer):  #
+def train_one_epoch(args, train_loader, oldmodel, model, block, classifier, criterion, optimizer, epoch, log, tf_writer):  #
     all_batch_correct_per_class = torch.zeros(10,dtype=torch.int64,requires_grad=False)
     all_batch_per_class = torch.zeros(10,dtype=torch.int64,requires_grad=False)
 
@@ -364,8 +369,11 @@ def train_one_epoch(args, train_loader, model, block, classifier, criterion, opt
 
             output = output['score']
 
-            (acc1_a, acc5_a), batch_per_correct_a  = accuracy(output, targets_a, topk=(1, 5))
-            (acc1_b, acc5_b), batch_per_correct_b = accuracy(output, targets_b, topk=(1, 5))
+            output = output['score']
+            output_old = oldmodel(input, get_feat=False) if args.pretrained and args.ensemble else None
+
+            (acc1_a, acc5_a), batch_per_correct_a  = accuracy(output, output_old, args.t1, args.t2, targets_a, topk=(1, 5))
+            (acc1_b, acc5_b), batch_per_correct_b = accuracy(output, output_old, args.t1, args.t2, targets_b, topk=(1, 5))
             acc1, acc5 = lam * acc1_a + (1 - lam) * acc1_b, lam * acc5_a + (1 - lam) * acc5_b
             batch_per_correct = lam * batch_per_correct + (1 - lam) * batch_per_correct
             all_batch_correct_per_class += batch_per_correct[0]
@@ -376,8 +384,9 @@ def train_one_epoch(args, train_loader, model, block, classifier, criterion, opt
             loss = criterion(output, target, curr=None)
 
             output = output['score']
+            output_old = oldmodel(input, get_feat=False) if args.pretrained and args.ensemble else None
 
-            (acc1, acc5),batch_per_correct = accuracy(output, target, topk=(1, 5))
+            (acc1, acc5),batch_per_correct = accuracy(output, output_old, args.t1, args.t2, target, topk=(1, 5))
             all_batch_correct_per_class += batch_per_correct[0]
             all_batch_per_class += batch_per_correct[1]
 
@@ -432,7 +441,7 @@ def train_one_epoch(args, train_loader, model, block, classifier, criterion, opt
     tf_writer.add_scalar('lr', optimizer.param_groups[-1]['lr'], epoch)
 
 
-def validate_one_epoch(args, val_loader, model, block, classifier, criterion, epoch, log=None, tf_writer=None,
+def validate_one_epoch(args, val_loader, oldmodel, model, block, classifier, criterion, epoch, log=None, tf_writer=None,
                        flag='Val'):
     all_batch_correct_per_class = torch.zeros(10, dtype=torch.int64, requires_grad=False)
     all_batch_per_class = torch.zeros(10, dtype=torch.int64, requires_grad=False)
@@ -465,10 +474,9 @@ def validate_one_epoch(args, val_loader, model, block, classifier, criterion, ep
             loss = criterion(output, target)
 
             output = output['score']
+            output_old = oldmodel(input, get_feat=False) if args.pretrained and args.ensemble else None
 
-            # measure accuracy and record loss
-
-            (acc1, acc5),batch_per_correct = accuracy(output, target, topk=(1, 5))
+            (acc1, acc5), batch_per_correct = accuracy(output, output_old, args.t1, args.t2, target, topk=(1, 5))
             all_batch_correct_per_class += batch_per_correct[0]
             all_batch_per_class += batch_per_correct[1]
             losses.update(loss.item(), input.size(0))
@@ -563,6 +571,10 @@ if __name__ == '__main__':
     parser.add_argument('--learning_rate', '--lr', default=0.1, type=float, metavar='LR', help='initial learning rate',
                         dest='lr')
     parser.add_argument('--lambda_', default=60, type=float, metavar='N', help='the weight of A')
+    parser.add_argument('--pretrained_path', default=None, type=str, help='the path of pretrained model')
+    parser.add_argument('--ensemble', default=False, type=bool, help='ensemble old model and new model')
+    parser.add_argument('--t1', default=1, type=int, metavar='N', help='new model temperature')
+    parser.add_argument('--t2', default=1, type=int, metavar='N', help='old model temperature')
     ##
     args = parser.parse_args()
 

@@ -119,12 +119,18 @@ def set_color(log, color, highlight=True):
     return prev_log + log + '\033[0m'
 
 
-def accuracy(output, target, topk=(1,)):
+def accuracy(output, output_old, t1, t2, target, topk=(1,)):
     with torch.no_grad():
         maxk = max(topk)
         batch_size = target.size(0)
 
+        if output_old != None:
+            output = (output - torch.max(output)) / t1
+            output_old = (output - torch.max(output_old)) / t2
+            output = (torch.softmax(output,dim = 1) + torch.softmax(output,dim = 1)) / 2
         _, pred = output.topk(maxk, 1, True, True)
+
+
         pred = pred.t()
         correct = pred.eq(target.view(1, -1).expand_as(pred))
         one_weights = torch.ones(batch_size)
