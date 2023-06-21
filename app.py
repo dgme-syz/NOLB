@@ -10,6 +10,11 @@ from models.resnet import *
 
 from train import main
 
+if os.path.exists('.\\models\\pretrained') == False:
+    os.makedirs(name='.\\models\\pretrained', exist_ok=True)
+ if os.path.exists('./Trained_Model') == False:
+    os.makedirs(name='./Trained_Model',exist_ok=True)
+
 folder_path = '.\\models\\pretrained'
 model_file = os.listdir(folder_path)
 
@@ -61,8 +66,6 @@ def analyze_arguments(*input_values):
 
 
     if input_values[-1] == True:
-        if os.path.exists('./Trained_Model') == False:
-            os.makedirs(name='./Trained_Model',exist_ok=True)
         torch.save(model.state_dict(),'./Trained_Model/model.pt')
     # 返回更新后的args对象
     return "./results/Prec@1.png","./results/GM.png","./results/HM.png","./results/LR.png"
