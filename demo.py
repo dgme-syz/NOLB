@@ -72,7 +72,7 @@ def analyze_arguments(*input_values):
 
     main(args)
     # 返回更新后的args对象
-    return vars(args),"C:\\Users\\duke hang\\Documents\\Tencent Files\\1928161381\\FileRecv\\Train_Prec@1.png","C:\\Users\\duke hang\\Documents\\Tencent Files\\1928161381\\FileRecv\\Train_GM.png","C:\\Users\\duke hang\\Documents\\Tencent Files\\1928161381\\FileRecv\\Train_HM.png","C:\\Users\\duke hang\\Documents\\Tencent Files\\1928161381\\FileRecv\\Train_LR.png"
+    return vars(args),"./Prec@1.png","./GM.png","./HM.png","./LR.png"
 
 if __name__ == '__main__':
     outputs = [
