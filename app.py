@@ -3,10 +3,20 @@ import os
 import gradio as gr
 import argparse
 
+import torch
+import torchvision
+
+from models.resnet import *
+
 from train import main
 
 folder_path = '.\\models\\pretrained'
 model_file = os.listdir(folder_path)
+
+model_path = '.\\Trained_Model'
+existed_models = os.listdir(model_path)
+
+labels = ['airplane', 'automobile', 'bird', 'cat', 'deer', 'dog', 'frog', 'horse', 'ship', 'truck']
 
 def analyze_arguments(*input_values):
     args = argparse.Namespace()
@@ -47,14 +57,36 @@ def analyze_arguments(*input_values):
     for arg_name, arg_value in argument_values.items():
         setattr(args, arg_name, arg_value)
 
-    main(args)
+    model = main(args)
+
+
+    if input_values[-1] == True:
+        if os.path.exists('./Trained_Model') == False:
+            os.makedirs(name='./Trained_Model',exist_ok=True)
+        torch.save(model.state_dict(),'./Trained_Model/model.pt')
     # 返回更新后的args对象
     return "./results/Prec@1.png","./results/GM.png","./results/HM.png","./results/LR.png"
 
+def predict(img,model_para,arch):
+    img = torchvision.transforms.ToTensor()(img).unsqueeze(0)
+    if arch == 'resnet20':
+        model = resnet20()
+    elif arch == 'resnet32':
+        model = resnet32()
+    else:
+        model = resnet44()
+    choose_model_path = os.path.join(model_path,model_para)
+    device = 'cpu' if torch.cuda.is_available() == False else 'cuda'
+    model.load_state_dict(torch.load(choose_model_path,map_location=device))
+    with torch.no_grad():
+        prediction = torch.nn.functional.softmax(model(img)[0], dim=0)
+        confidences = {labels[i]: float(prediction[i]) for i in range(len(labels))}
+    return confidences
+
+
 app = gr.Blocks(title='WebUI',
                 theme=gr.themes.Soft(primary_hue="orange",
-                                    secondary_hue="blue",
-                                    neutral_hue = "green",))
+                                    secondary_hue="blue",))
 with app:
     gr.Markdown(value="""# Machine Learning 课设
                         **Author**:[DGMEFG](https://github.com/DGMEFG) [Garden-Unicorn](https://github.com/Garden-Unicorn) [dukexh](https://github.com/dukexh) """)
@@ -104,7 +136,8 @@ with app:
                     res.extend([mome,arch,weight_decay,loss,lr,Lam_])
             Random_Num = gr.Number(label='Random Number', value=0)
             Expstr = gr.Textbox(label='Experiment String', value='bs512_lr002_110')
-            res.extend([Random_Num,Expstr])
+            save = gr.Checkbox(label="save model(You can find it in 'Trained_model' folder)",value=False)
+            res.extend([Random_Num, Expstr, save])
             submit = gr.Button("Train and Load", variant="primary")
             gr.Markdown("### precision&1 and GM")
             with gr.Row():
@@ -115,6 +148,15 @@ with app:
                 HM = gr.Image(type='filepath', label="HM")
                 LR = gr.Image(type='filepath', label="LR")
         submit.click(fn=analyze_arguments, inputs=res, outputs=[p1, GM, HM, LR])
+        with gr.TabItem("推理"):
+            gr.Markdown("注：由于本课设基于cifar10，故推理图片将会自动处理为32x32")
+            input_image = gr.Image(type='pil',image_mode='RGB',shape=(32,32))
+            input_arch = gr.Dropdown(choices=['resnet20', 'resnet32','resnet44'], label='Model Architecture', value='resnet32')
+            input_model = gr.Dropdown(choices=existed_models,label='Load Model')
+            output_class = gr.Label(num_top_classes=10)
+            interface = gr.Button("Interface", variant="primary")
+        interface.click(fn=predict,inputs=[input_image,input_model,input_arch],outputs=output_class)
+
 app.launch()
 
 

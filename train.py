@@ -274,7 +274,7 @@ def main(args):
     fig3.set_size_inches(16, 5)
     plt.savefig('./results/LR.png', dpi=1000)
     plt.clf()
-
+    return model
 '''
     plt.plot(list_x, list_train_GM, color='blue', label='GM')
     plt.xlabel("Epochs")
