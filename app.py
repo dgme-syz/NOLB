@@ -159,8 +159,10 @@ with app:
             output_class = gr.Label(num_top_classes=10)
             interface = gr.Button("Inference", variant="primary")
         interface.click(fn=predict,inputs=[input_image,input_model,input_arch],outputs=output_class)
-
-app.launch()
+parser = argparse.ArgumentParser(description='PyTorch Cifar Training')
+parser.add_argument('--share', default=False, type=bool, help='share your webui')
+args = parser.parse_args()
+app.launch(share=args.share)
 
 
 
