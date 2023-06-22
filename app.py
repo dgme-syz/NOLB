@@ -19,7 +19,19 @@ model_file = os.listdir(folder_path)
 model_path = '.\\Trained_Model'
 existed_models = os.listdir(model_path)
 
-labels = ['airplane', 'automobile', 'bird', 'cat', 'deer', 'dog', 'frog', 'horse', 'ship', 'truck']
+labels_10 = ['airplane', 'automobile', 'bird', 'cat', 'deer', 'dog', 'frog', 'horse', 'ship', 'truck']
+lables_100 = class_names = ['apple', 'aquarium_fish', 'baby', 'bear', 'beaver', 'bed', 'bee', 'beetle', 'bicycle', 'bottle',
+               'bowl', 'boy', 'bridge', 'bus', 'butterfly', 'camel', 'can', 'castle', 'caterpillar', 'cattle',
+               'chair', 'chimpanzee', 'clock', 'cloud', 'cockroach', 'couch', 'crab', 'crocodile', 'cup',
+               'dinosaur', 'dolphin', 'elephant', 'flatfish', 'forest', 'fox', 'girl', 'hamster', 'house',
+               'kangaroo', 'keyboard', 'lamp', 'lawn_mower', 'leopard', 'lion', 'lizard', 'lobster', 'man',
+               'maple_tree', 'motorcycle', 'mountain', 'mouse', 'mushroom', 'oak_tree', 'orange', 'orchid', 'otter',
+               'palm_tree', 'pear', 'pickup_truck', 'pine_tree', 'plain', 'plate', 'poppy', 'porcupine', 'possum',
+               'rabbit', 'raccoon', 'ray', 'road', 'rocket', 'rose', 'sea', 'seal', 'shark', 'shrew', 'skunk',
+               'skyscraper', 'snail', 'snake', 'spider', 'squirrel', 'streetcar', 'sunflower', 'sweet_pepper', 'table',
+               'tank', 'telephone', 'television', 'tiger', 'tractor', 'train', 'trout', 'tulip', 'turtle', 'wardrobe',
+               'whale', 'willow_tree', 'wolf', 'woman', 'worm']
+
 
 def analyze_arguments(*input_values):
     args = argparse.Namespace()
@@ -71,17 +83,24 @@ def analyze_arguments(*input_values):
     # 返回更新后的args对象
     return "./results/Prec@1.png","./results/GM.png","./results/HM.png","./results/LR.png"
 
-def predict(img,model_para,arch):
+def predict(img,model_para,arch,raw_material):
+    labels = []
+    if raw_material == 'Cifar10':
+        labels = labels_10
+    elif raw_material == 'Cifar100':
+        labels = lables_100
+
     img = torchvision.transforms.ToTensor()(img).unsqueeze(0)
     if arch == 'resnet20':
-        model = resnet20()
+        model = resnet20(num_classes=len(labels))
     elif arch == 'resnet32':
-        model = resnet32()
+        model = resnet32(num_classes=len(labels))
     else:
-        model = resnet44()
+        model = resnet44(num_classes=len(labels))
     choose_model_path = os.path.join(model_path,model_para)
     device = 'cpu' if torch.cuda.is_available() == False else 'cuda'
     model.load_state_dict(torch.load(choose_model_path,map_location=device))
+
     with torch.no_grad():
         prediction = torch.nn.functional.softmax(model(img)[0], dim=0)
         confidences = {labels[i]: float(prediction[i]) for i in range(len(labels))}
@@ -154,13 +173,15 @@ with app:
                 LR = gr.Image(type='filepath', label="LR")
         submit.click(fn=analyze_arguments, inputs=res, outputs=[p1, GM, HM, LR])
         with gr.TabItem("推理"):
-            gr.Markdown("注：由于本课设基于cifar10，故推理图片将会自动处理为32x32")
+            gr.Markdown("注：由于本课设基于cifar数据集，故推理图片将会自动处理为32x32")
             input_image = gr.Image(type='pil',image_mode='RGB',shape=(32,32))
             input_arch = gr.Dropdown(choices=['resnet20', 'resnet32','resnet44'], label='Model Architecture', value='resnet32')
-            input_model = gr.Dropdown(choices=existed_models,label='Load Model')
+            with gr.Row():
+                input_model = gr.Dropdown(choices=existed_models,label='Load Model')
+                input_class = gr.Dropdown(choices=['Cifar10','Cifar100'],label='Choose Raw Dataset')
             output_class = gr.Label(num_top_classes=10)
             interface = gr.Button("Inference", variant="primary")
-        interface.click(fn=predict,inputs=[input_image,input_model,input_arch],outputs=output_class)
+        interface.click(fn=predict,inputs=[input_image,input_model,input_arch,input_class],outputs=output_class)
 parser = argparse.ArgumentParser(description='PyTorch Cifar Training')
 parser.add_argument('--share', default=False, type=bool, help='share your webui')
 args = parser.parse_args()
