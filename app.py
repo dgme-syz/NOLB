@@ -33,27 +33,28 @@ def analyze_arguments(*input_values):
         'mixup': False,
         'print_freq': 10,
         'resume': None,
-        'pretrained': input_values[5],
-        'pretrained_path': os.path.join(folder_path,input_values[7]),
-        'ensemble': input_values[6],
-        't1': input_values[8],
-        't2': input_values[9],
-        'seed': int(input_values[10]),
+        'pretrained_freezing': input_values[5],
+        'pretrained_keep': input_values[6],
+        'pretrained_path': os.path.join(folder_path,input_values[8]),
+        'ensemble': input_values[7],
+        't1': input_values[9],
+        't2': input_values[10],
+        'seed': int(input_values[11]),
         'gpu': 0,
-        'root_log': input_values[11],
-        'start_epoch': int(input_values[12]),
-        'momentum': input_values[16],
-        'arch': input_values[17],
-        'epochs': int(input_values[13]),
-        'workers': int(input_values[14]),
-        'weight_decay': input_values[18],
-        'rand_number': int(input_values[22]),
-        'exp_str': input_values[23],
-        'loss_type': input_values[19],
+        'root_log': input_values[12],
+        'start_epoch': int(input_values[13]),
+        'momentum': input_values[17],
+        'arch': input_values[18],
+        'epochs': int(input_values[14]),
+        'workers': int(input_values[15]),
+        'weight_decay': input_values[19],
+        'rand_number': int(input_values[23]),
+        'exp_str': input_values[24],
+        'loss_type': input_values[20],
         'imb_factor': input_values[1],
-        'batch_size': int(input_values[15]),
-        'lr': input_values[20],
-        'lambda_': input_values[21],
+        'batch_size': int(input_values[16]),
+        'lr': input_values[21],
+        'lambda_': input_values[22],
     }
 
     # 更新args对象的属性值
@@ -108,9 +109,10 @@ with app:
                 TR = gr.Dropdown(choices=['BalancedRS','None','EffectNumRS','ClassAware','EffectNumRW','BalancedRW'],label='Train Rule', value='None')
                 res.extend([IT,TR])
             with gr.Row():
-                pretrained = gr.Checkbox(label='Pretrained', value=False)
+                pretrained_freezing = gr.Checkbox(label='Pretrained(Freezing feature extraction)', value=False)
+                pretrained_keep = gr.Checkbox(label='Pretrained(Freezing all parameters)', value=False)
                 ensemble = gr.Checkbox(label='Ensemble',value=False)
-                res.extend([pretrained,ensemble])
+                res.extend([pretrained_freezing,pretrained_keep,ensemble])
             gr.Markdown("### 预训练 & 集成模型参数设置")
             with gr.Row():
                 pretrained_path = gr.Dropdown(choices=model_file,label='Select Pretrained Model')

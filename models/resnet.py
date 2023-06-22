@@ -123,23 +123,28 @@ class ResNet(nn.Module):
             return feat
 
 
-def resnet20(num_classes=10, classifier=True, linear_type='Default', pretrained=False, pretrained_path=None):
+def resnet20(num_classes=10, classifier=True, linear_type='Default', pretrained_freezing=False, pretrained_keep = False, pretrained_path=None):
     device = 'cpu' if torch.cuda.is_available() == False else 'cuda'
     model = ResNet(BasicBlock, [3, 3, 3], num_classes, classifier, linear_type)
-    if pretrained:
-        print('You are using pretrained resnet20')
+    if pretrained_freezing:
+        print('You are using pretrained resnet20 and the feature extraction layers are frozen')
         model.load_state_dict(torch.load(pretrained_path,map_location=device))
         # Freezing the main network.
         for name,parm in model.named_parameters():
             if name != 'linear.weight' and name != 'linear.bias':
                 parm.requires_grad = False
+    if pretrained_keep:
+        print('You are using pretrained resnet20 and all layers is frozen')
+        model.load_state_dict(torch.load(pretrained_path, map_location=device))
+        for name, parm in model.named_parameters():
+            parm.requires_grad = False
     return model
 
 
-def resnet32(num_classes=10, classifier=True, linear_type='Default', pretrained=False, pretrained_path=None):
+def resnet32(num_classes=10, classifier=True, linear_type='Default', pretrained_freezing=False, pretrained_keep = False, pretrained_path=None):
     device = 'cpu' if torch.cuda.is_available() == False else 'cuda'
     model = ResNet(BasicBlock, [5, 5, 5], num_classes, classifier, linear_type)
-    if pretrained:
+    if pretrained_freezing:
         print('You are using pretrained resnet32')
         print(pretrained_path)
         model.load_state_dict(torch.load(pretrained_path, map_location=device))
@@ -147,33 +152,49 @@ def resnet32(num_classes=10, classifier=True, linear_type='Default', pretrained=
         for name, parm in model.named_parameters():
             if name != 'linear.weight' and name != 'linear.bias':
                 parm.requires_grad = False
-
+    if pretrained_keep:
+        print('You are using pretrained resnet32 and all layers is frozen')
+        model.load_state_dict(torch.load(pretrained_path, map_location=device))
+        for name, parm in model.named_parameters():
+            parm.requires_grad = False
     return model
 
 
-def resnet44(num_classes=10, classifier=True, linear_type='Default', pretrained=False, pretrained_path=None):
-    if pretrained:
-        print("Sorry! In our implementation, the series of CIFAR doesn't support loading pre-trained models!")
+def resnet44(num_classes=10, classifier=True, linear_type='Default', pretrained_freezing=False, pretrained_keep=False, pretrained_path=None):
+    device = 'cpu' if torch.cuda.is_available() == False else 'cuda'
+    model = ResNet(BasicBlock, [7, 7, 7], num_classes, classifier, linear_type)
+    if pretrained_freezing:
+        print('You are using pretrained resnet44')
+        print(pretrained_path)
+        model.load_state_dict(torch.load(pretrained_path, map_location=device))
+        # Freezing the main network.
+        for name, parm in model.named_parameters():
+            if name != 'linear.weight' and name != 'linear.bias':
+                parm.requires_grad = False
+    if pretrained_keep:
+        print('You are using pretrained resnet44 and all layers is frozen')
+        model.load_state_dict(torch.load(pretrained_path, map_location=device))
+        for name, parm in model.named_parameters():
+            parm.requires_grad = False
+    return model
 
-    return ResNet(BasicBlock, [7, 7, 7], num_classes, classifier, linear_type)
 
-
-def resnet56(num_classes=10, classifier=True, linear_type='Default', pretrained=False, pretrained_path=None):
-    if pretrained:
+def resnet56(num_classes=10, classifier=True, linear_type='Default', pretrained_freezing=False, pretrained_keep=False, pretrained_path=None):
+    if pretrained_freezing or pretrained_keep:
         print("Sorry! In our implementation, the series of CIFAR doesn't support loading pre-trained models!")
 
     return ResNet(BasicBlock, [9, 9, 9], num_classes, classifier, linear_type)
 
 
-def resnet110(num_classes=10, classifier=True, linear_type='Default', pretrained=False, pretrained_path=None):
-    if pretrained:
+def resnet110(num_classes=10, classifier=True, linear_type='Default', pretrained_freezing=False, pretrained_keep=False, pretrained_path=None):
+    if pretrained_freezing or pretrained_keep:
         print("Sorry! In our implementation, the series of CIFAR doesn't support loading pre-trained models!")
 
     return ResNet(BasicBlock, [18, 18, 18], num_classes, classifier, linear_type)
 
 
-def resnet1202(num_classes=10, classifier=True, linear_type='Default', pretrained=False, pretrained_path=None):
-    if pretrained:
+def resnet1202(num_classes=10, classifier=True, linear_type='Default', pretrained_freezing=False, pretrained_keep=False, pretrained_path=None):
+    if pretrained_freezing or pretrained_keep:
         print("Sorry! In our implementation, the series of CIFAR doesn't support loading pre-trained models!")
 
     return ResNet(BasicBlock, [200, 200, 200], num_classes, classifier, linear_type)
