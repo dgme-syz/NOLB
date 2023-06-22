@@ -161,9 +161,9 @@ def main(args):
         # Note that different dataset may have different decay strategy
         adjust_learning_rate(args, optimizer, epoch)
         train_one_epoch(args, train_loader, oldmodel, model, block, classifier, criterion, optimizer, epoch, log_training,
-                        tf_writer)
+                        tf_writer, num_classes=num_classes)
         acc1, val_loss = validate_one_epoch(args, val_loader, oldmodel, model, block, classifier, criterion, epoch, log_testing,
-                                            tf_writer)
+                                            tf_writer, num_classes=num_classes)
 
         # scheduler.step(val_loss)
         # remember best acc@1 and save checkpoint
@@ -322,9 +322,9 @@ def main(args):
 '''
 
 
-def train_one_epoch(args, train_loader, oldmodel, model, block, classifier, criterion, optimizer, epoch, log, tf_writer):  #
-    all_batch_correct_per_class = torch.zeros(10,dtype=torch.int64,requires_grad=False)
-    all_batch_per_class = torch.zeros(10,dtype=torch.int64,requires_grad=False)
+def train_one_epoch(args, train_loader, oldmodel, model, block, classifier, criterion, optimizer, epoch, log, tf_writer, num_classes):  #
+    all_batch_correct_per_class = torch.zeros(num_classes,dtype=torch.int64,requires_grad=False)
+    all_batch_per_class = torch.zeros(num_classes,dtype=torch.int64,requires_grad=False)
 
     if torch.cuda.is_available():
         all_batch_correct_per_class = all_batch_correct_per_class.cuda()
@@ -442,9 +442,9 @@ def train_one_epoch(args, train_loader, oldmodel, model, block, classifier, crit
 
 
 def validate_one_epoch(args, val_loader, oldmodel, model, block, classifier, criterion, epoch, log=None, tf_writer=None,
-                       flag='Val'):
-    all_batch_correct_per_class = torch.zeros(10, dtype=torch.int64, requires_grad=False)
-    all_batch_per_class = torch.zeros(10, dtype=torch.int64, requires_grad=False)
+                       flag='Val',num_classes=100):
+    all_batch_correct_per_class = torch.zeros(num_classes, dtype=torch.int64, requires_grad=False)
+    all_batch_per_class = torch.zeros(num_classes, dtype=torch.int64, requires_grad=False)
 
     if torch.cuda.is_available():
         all_batch_correct_per_class = all_batch_correct_per_class.cuda()
