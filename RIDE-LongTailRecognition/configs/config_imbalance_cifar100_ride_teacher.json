@@ -39,7 +39,7 @@
         }
     },
     "metrics": [
-        "accuracy"
+        "accuracy","GM", "HM", "LR"
     ],
     "lr_scheduler": {
         "type": "CustomLR",

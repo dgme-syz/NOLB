@@ -36,7 +36,7 @@
         "type": "CrossEntropyLoss"
     },
     "metrics": [
-        "accuracy", "top_k_acc"
+        "accuracy", "top_k_acc", "GM", "HM", "LR"
     ],
     "lr_scheduler": {
         "type": "CosineAnnealingLR",
