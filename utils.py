@@ -142,8 +142,8 @@ def accuracy(output, output_old, t1, t2, target, topk=(1,)):
         res = []
         cls = []
 
-        cls1 = torch.bincount(target,weights=correct[0,:],minlength=cls_nums).to(torch.int64)
-        cls2 = torch.bincount(target,weights=one_weights,minlength=cls_nums).to(torch.int64)
+        cls1 = torch.bincount(target,weights=correct[0,:],minlength=cls_nums).to(torch.float64)
+        cls2 = torch.bincount(target,weights=one_weights,minlength=cls_nums).to(torch.float64)
         if torch.cuda.is_available():
             cls1 = cls1.cuda()
             cls2 = cls2.cuda()
@@ -287,6 +287,6 @@ def GM_HM_LR(correct_per_class,all_per_class):
     cls_nums = len(correct_per_class)
     recall = torch.clamp(correct_per_class / all_per_class,min=1e-3)
     GM = torch.pow(torch.prod(recall),1/cls_nums)#cls_nums个类别
-    HM = 10/torch.sum(1/recall)
+    HM = cls_nums/torch.sum(1/recall)
     LR = torch.min(recall)
     return GM,HM,LR

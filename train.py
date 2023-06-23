@@ -325,8 +325,8 @@ def main(args):
 
 
 def train_one_epoch(args, train_loader, oldmodel, model, block, classifier, criterion, optimizer, epoch, log, tf_writer, num_classes,pretrained_keep):  #
-    all_batch_correct_per_class = torch.zeros(num_classes,dtype=torch.int64,requires_grad=False)
-    all_batch_per_class = torch.zeros(num_classes,dtype=torch.int64,requires_grad=False)
+    all_batch_correct_per_class = torch.zeros(num_classes,dtype=torch.float64,requires_grad=False)
+    all_batch_per_class = torch.zeros(num_classes,dtype=torch.float64,requires_grad=False)
 
     if torch.cuda.is_available():
         all_batch_correct_per_class = all_batch_correct_per_class.cuda()
@@ -446,8 +446,8 @@ def train_one_epoch(args, train_loader, oldmodel, model, block, classifier, crit
 
 def validate_one_epoch(args, val_loader, oldmodel, model, block, classifier, criterion, epoch, log=None, tf_writer=None,
                        flag='Val',num_classes=100):
-    all_batch_correct_per_class = torch.zeros(num_classes, dtype=torch.int64, requires_grad=False)
-    all_batch_per_class = torch.zeros(num_classes, dtype=torch.int64, requires_grad=False)
+    all_batch_correct_per_class = torch.zeros(num_classes, dtype=torch.float64, requires_grad=False)
+    all_batch_per_class = torch.zeros(num_classes, dtype=torch.float64, requires_grad=False)
 
     if torch.cuda.is_available():
         all_batch_correct_per_class = all_batch_correct_per_class.cuda()
