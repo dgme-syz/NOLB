@@ -173,7 +173,7 @@ pip install -r requirements.txt
 
 > Ex ：效果虽然差强人意，但是合乎情理
 
-![image-20230623164147443](C:\Users\syz\AppData\Roaming\Typora\typora-user-images\image-20230623164147443.png)
+![img](https://pic.imgdb.cn/item/64956fc71ddac507cccd444e.jpg)
 
 
 
