@@ -159,7 +159,8 @@ def plot(use_data,data_imb,data_imc,old_model_na,fine_tuning,arch,epochs):
         old_model = resnet32(num_classes=classes_dict[use_data])
     else:
         old_model = resnet44(num_classes=classes_dict[use_data])
-    old_model.load_state_dict(torch.load(args.pretrained_path,map_location=device))
+    old_model.load_state_dict(torch.load(args.pretrained_path, map_location=device))
+    old_model.to(device)
 
     new_model.eval()
     old_model.eval()
@@ -172,6 +173,8 @@ def plot(use_data,data_imb,data_imc,old_model_na,fine_tuning,arch,epochs):
     # 使用top1
     for img,label in test_data:
         img = img.unsqueeze(0)
+        if torch.cuda.is_available():
+            img = img.cuda()
         new_logits = new_model(img)[0]
         old_logits = old_model(img)[0]
         new_pred_class = torch.argmax(new_logits)
