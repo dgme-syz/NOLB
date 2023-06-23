@@ -169,7 +169,9 @@ class RIDELoss(nn.Module):
 
             assert np.all(per_cls_weights > 0), "reweight factor is too large: out of bounds"
             # save diversity per_cls_weights
-            self.per_cls_weights_enabled_diversity = torch.tensor(per_cls_weights, dtype=torch.float, requires_grad=False).cuda()
+            self.per_cls_weights_enabled_diversity = torch.tensor(per_cls_weights, dtype=torch.float, requires_grad=False)
+            if torch.cuda.is_available():
+                self.per_cls_weights_enabled_diversity = self.per_cls_weights_enabled_diversity.cuda()
 
         self.base_diversity_temperature = base_diversity_temperature
         self.additional_diversity_factor = additional_diversity_factor
