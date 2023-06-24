@@ -174,9 +174,6 @@ class GML(nn.Module):
 
         return loss
 
-"""Copyright (c) Hyperconnect, Inc. and its affiliates.
-All rights reserved.
-"""
 
 class LADELoss(nn.Module):
     def __init__(self, num_classes=10, img_max=500, prior=0.1, prior_txt=None, remine_lambda=0.1):
