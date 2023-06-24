@@ -280,7 +280,7 @@ cd ./Paco
 cd ./RIDE-LongTailRecognition
 ```
 
-终端运行(4 选 1)：
+终端运行(3 选 1)：
 
 * `python train.py -c "configs/config_imbalance_cifar100_ride.json" -r "./pretrained/checkpoint-epoch5_ride.pth" --reduce_dimension 1 --num_experts 3`
 * `python train.py -c "configs/config_imbalance_cifar100_ride_ea.json" -r "./pretrained/checkpoint-epoch5_ride_ea.pth" --reduce_dimension 1 --num_experts 3` (推荐)
