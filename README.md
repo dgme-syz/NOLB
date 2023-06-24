@@ -37,7 +37,7 @@ pip install -r requirements.txt
 * 前人的改进方法
   * LDAM & LADE & MiSLAS & RIDE & Paco
 * 论文作者提出的 GML tuning 策略以及 ensemble trick方法
-  * CE + GML & CE + GML(emsemble)
+  * CE + GML & CE + GML(ensemble)
 
 > 由于团队科研能力有限，只能对基于基础的残差神经网络架构方法进行再现，所以这里使用简单的 CE 方法来再现论文提出的 GML 损失函数的 Plug-In Method 对于预训练模型的改善效果
 
