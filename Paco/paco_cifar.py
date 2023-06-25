@@ -113,7 +113,7 @@ parser.add_argument('--normalize', default=False, type=bool,
 # options for paco
 parser.add_argument('--mark', default="CIFAR100_imb001_R32_001_005_t3", type=str,
                     help='log dir')
-parser.add_argument('--reload', default=".\\pretrained\\poco_ckpt.pth", type=str,
+parser.add_argument('--reload', default="./pretrained/poco_ckpt.pth", type=str,
                     help='load supervised model')
 parser.add_argument('--warmup_epochs', default=10, type=int,
                     help='warmup epochs')
