@@ -27,11 +27,11 @@ import moco.builder
 from dataset.imbalance_cifar import ImbalanceCIFAR100
 import torchvision.datasets as datasets
 from losses import PaCoLoss
+from utils import shot_acc
 
 model_names = sorted(name for name in models.__dict__
                      if name.islower() and not name.startswith("__")
                      and callable(models.__dict__[name]))
-
 
 model_names += ['resnext101_32x4d'] 
 model_names += ['resnet32'] 
@@ -45,7 +45,7 @@ parser.add_argument('-a', '--arch', metavar='ARCH', default='resnet32',
                     help='model architecture: ' + ' | '.join(model_names) + ' (default: resnet32)')
 parser.add_argument('-j', '--workers', default=0, type=int, metavar='N',
                     help='number of data loading workers (default: 32)')
-parser.add_argument('--epochs', default=2, type=int, metavar='N',
+parser.add_argument('--epochs', default=500, type=int, metavar='N',
                     help='number of total epochs to run')
 parser.add_argument('--start-epoch', default=0, type=int, metavar='N',
                     help='manual epoch number (useful on restarts)')
@@ -54,8 +54,8 @@ parser.add_argument('-b', '--batch-size', default=128, type=int,
                     help='mini-batch size (default: 256), this is the total '
                          'batch size of all GPUs on the current node when '
                          'using Data Parallel or Distributed Data Parallel')
-parser.add_argument('--imb-factor', type=float,
-                    metavar='IF', help='imbalanced factor', dest='imb_factor', default=0.01)
+parser.add_argument('--imb-factor', type=float, default= 0.01,
+                    metavar='IF', help='imbalanced factor', dest='imb_factor')
 parser.add_argument('--lr', '--learning-rate', default=0.05, type=float,
                     metavar='LR', help='initial learning rate', dest='lr')
 parser.add_argument('--schedule', default=[160, 180], nargs='*', type=int,
@@ -75,9 +75,9 @@ parser.add_argument('--world-size', default=1, type=int,
                     help='number of nodes for distributed training')
 parser.add_argument('--rank', default=0, type=int,
                     help='node rank for distributed training')
-parser.add_argument('--dist-url', default='tcp://localhost:9996', type=str,
+parser.add_argument('--dist-url', default='tcp://localhost:11000', type=str,
                     help='url used to set up distributed training')
-parser.add_argument('--dist-backend', default='nccl', type=str,
+parser.add_argument('--dist-backend', default='gloo', type=str,
                     help='distributed backend')
 parser.add_argument('--seed', default=None, type=int,
                     help='seed for initializing training. ')
@@ -113,7 +113,7 @@ parser.add_argument('--normalize', default=False, type=bool,
 # options for paco
 parser.add_argument('--mark', default="CIFAR100_imb001_R32_001_005_t3", type=str,
                     help='log dir')
-parser.add_argument('--reload', default="./pretrained/poco_ckpt.pth", type=str,
+parser.add_argument('--reload', default=None, type=str,
                     help='load supervised model')
 parser.add_argument('--warmup_epochs', default=10, type=int,
                     help='warmup epochs')
@@ -123,7 +123,7 @@ parser.add_argument('--beta', default=1.0, type=float,
                     help='supervise loss weight')
 parser.add_argument('--gamma', default=1.0, type=float,
                     help='paco loss')
-parser.add_argument('--aug', default='cifar100', type=str,
+parser.add_argument('--aug', default="cifar100", type=str,
                     help='aug strategy')
 parser.add_argument('--num_classes', default=100, type=int,
                     help='num classes in dataset')
@@ -149,30 +149,29 @@ def main():
     if args.gpu is not None:
         warnings.warn('You have chosen a specific GPU. This will completely '
                       'disable data parallelism.')
-    else:
-        args.gpu = 0
 
     if args.dist_url == "env://" and args.world_size == -1:
         args.world_size = int(os.environ["WORLD_SIZE"])
 
     args.distributed = args.world_size > 1 or args.multiprocessing_distributed
 
-    ngpus_per_node = torch.cuda.device_count() if torch.cuda.device_count() != None else 0
-    # if args.multiprocessing_distributed:
-    #     # Since we have ngpus_per_node processes per node, the total world_size
-    #     # needs to be adjusted accordingly
-    #     args.world_size = ngpus_per_node * args.world_size
-    #     # Use torch.multiprocessing.spawn to launch distributed processes: the
-    #     # main_worker process function
-    #     mp.spawn(main_worker, nprocs=ngpus_per_node, args=(ngpus_per_node, args))
-    # else:
-    #     # Simply call main_worker function
-    #     main_worker(args.gpu, ngpus_per_node, args)
-    main_worker(args.gpu, ngpus_per_node, args)
+    ngpus_per_node = torch.cuda.device_count()
+    if args.multiprocessing_distributed:
+        # Since we have ngpus_per_node processes per node, the total world_size
+        # needs to be adjusted accordingly
+        args.world_size = ngpus_per_node * args.world_size
+        # Use torch.multiprocessing.spawn to launch distributed processes: the
+        # main_worker process function
+        mp.spawn(main_worker, nprocs=ngpus_per_node, args=(ngpus_per_node, args))
+    else:
+        # Simply call main_worker function
+        main_worker(args.gpu, ngpus_per_node, args)
+
 
 
 def main_worker(gpu, ngpus_per_node, args):
     args.gpu = gpu
+
     # suppress printing if not master
     if args.multiprocessing_distributed and args.gpu != 0:
         def print_pass(*args):
@@ -189,53 +188,49 @@ def main_worker(gpu, ngpus_per_node, args):
             # For multiprocessing distributed training, rank needs to be the
             # global rank among all the processes
             args.rank = args.rank * ngpus_per_node + gpu
-        dist.init_process_group(backend='gloo', init_method=args.dist_url,
+        dist.init_process_group(backend=args.dist_backend, init_method=args.dist_url,
                                 world_size=args.world_size, rank=args.rank)
     # create model
     print("=> creating model '{}'".format(args.arch))
     model = moco.builder.MoCo(
         getattr(resnet_cifar, args.arch),
         args.moco_dim, args.moco_k, args.moco_m, args.moco_t, args.mlp, args.feat_dim, args.normalize, num_classes=args.num_classes)
-    print(model.parameters())
+    print(model)
 
-    device = 'cpu' if not torch.cuda.is_available() else 'cuda'
     if args.distributed:
         # For multiprocessing distributed, DistributedDataParallel constructor
         # should always set the single device scope, otherwise,
         # DistributedDataParallel will use all available devices.
         if args.gpu is not None:
-            if device == 'cuda':
-                torch.cuda.set_device(args.gpu)
-                model.cuda(args.gpu)
+            torch.cuda.set_device(args.gpu)
+            model.cuda(args.gpu)
             # When using a single GPU per process and per
             # DistributedDataParallel, we need to divide the batch size
             # ourselves based on the total number of GPUs we have
-            ngpus_per_node = 1
             args.batch_size = int(args.batch_size / ngpus_per_node)
             args.workers = int((args.workers + ngpus_per_node - 1) / ngpus_per_node)
-            model = torch.nn.parallel.DistributedDataParallel(model, find_unused_parameters=True)
+            model = torch.nn.parallel.DistributedDataParallel(model, device_ids=[args.gpu], find_unused_parameters=True)
 
 
             filename=f'{args.root_model}/moco_ckpt.pth.tar'
             if os.path.exists(filename):
-                args.resume = filename
+               args.resume = filename
 
-            device = 'cpu' if not torch.cuda.is_available() else 'cuda'
-            ## 加载预处理模型
+
             if args.reload:
-                state_dict = model.state_dict()
-                state_dict_ssp = torch.load(args.reload,map_location=device)['state_dict']
+               state_dict = model.state_dict()
+               state_dict_ssp = torch.load(args.reload)['state_dict']
 
-                print(state_dict_ssp.keys())
+               print(state_dict_ssp.keys())
 
-                for key in state_dict.keys():
-                    print(key)
-                    if key in state_dict_ssp.keys() and state_dict[key].shape == state_dict_ssp[key].shape:
-                        state_dict[key]=state_dict_ssp[key]
-                        print(key+" ****loaded******* ")
-                    else:
-                        print(key+" ****unloaded******* ")
-                model.load_state_dict(state_dict)
+               for key in state_dict.keys():
+                      print(key)
+                      if key in state_dict_ssp.keys() and state_dict[key].shape == state_dict_ssp[key].shape:
+                         state_dict[key]=state_dict_ssp[key]
+                         print(key+" ****loaded******* ")
+                      else:
+                         print(key+" ****unloaded******* ")
+               model.load_state_dict(state_dict)
 
         else:
             model.cuda()
@@ -252,30 +247,31 @@ def main_worker(gpu, ngpus_per_node, args):
         # this code only supports DistributedDataParallel.
         raise NotImplementedError("Only DistributedDataParallel is supported.")
 
+    # define loss function (criterion) and optimizer
     criterion_ce = nn.CrossEntropyLoss().cuda(args.gpu)
-    criterion = PaCoLoss(alpha=args.alpha, beta=args.beta, gamma=args.gamma, temperature=args.moco_t, K=args.moco_k,
-                         num_classes=args.num_classes).cuda(args.gpu)
-
+    criterion = PaCoLoss(alpha=args.alpha, beta=args.beta, gamma=args.gamma, temperature=args.moco_t, K=args.moco_k, num_classes=args.num_classes).cuda(args.gpu) 
+    
     optimizer = torch.optim.SGD(model.parameters(), args.lr,
                                 momentum=args.momentum,
                                 weight_decay=args.weight_decay)
-    # # optionally resume from a checkpoint
-    # if args.resume:
-    #     if os.path.isfile(args.resume):
-    #         print("=> loading checkpoint '{}'".format(args.resume))
-    #         if args.gpu is None:
-    #             checkpoint = torch.load(args.resume)
-    #         else:
-    #             # Map model to be loaded to specified single gpu.
-    #             loc = 'cuda:{}'.format(args.gpu)
-    #             checkpoint = torch.load(args.resume, map_location=loc)
-    #         args.start_epoch = checkpoint['epoch']
-    #         model.load_state_dict(checkpoint['state_dict'])
-    #         optimizer.load_state_dict(checkpoint['optimizer'])
-    #         print("=> loaded checkpoint '{}' (epoch {})"
-    #               .format(args.resume, checkpoint['epoch']))
-    #     else:
-    #         print("=> no checkpoint found at '{}'".format(args.resume))
+
+    # optionally resume from a checkpoint
+    if args.resume:
+        if os.path.isfile(args.resume):
+            print("=> loading checkpoint '{}'".format(args.resume))
+            if args.gpu is None:
+                checkpoint = torch.load(args.resume)
+            else:
+                # Map model to be loaded to specified single gpu.
+                loc = 'cuda:{}'.format(args.gpu)
+                checkpoint = torch.load(args.resume, map_location=loc)
+            args.start_epoch = checkpoint['epoch']
+            model.load_state_dict(checkpoint['state_dict'])
+            optimizer.load_state_dict(checkpoint['optimizer'])
+            print("=> loaded checkpoint '{}' (epoch {})"
+                  .format(args.resume, checkpoint['epoch']))
+        else:
+            print("=> no checkpoint found at '{}'".format(args.resume))
 
     cudnn.benchmark = True
 
@@ -363,7 +359,6 @@ def main_worker(gpu, ngpus_per_node, args):
             train=False, 
             download=True, 
             transform=val_transform)
-
     transform_train=[]
     if args.aug == 'regular_regular':
        transform_train = [transforms.Compose(augmentation_regular), transforms.Compose(augmentation)]
@@ -409,6 +404,8 @@ def main_worker(gpu, ngpus_per_node, args):
         return
 
     best_acc1 = 0
+    epoch_num = 0
+
     for epoch in range(args.start_epoch, args.epochs):
         if args.distributed:
             train_sampler.set_epoch(epoch)
@@ -419,7 +416,7 @@ def main_worker(gpu, ngpus_per_node, args):
         acc1 = validate(val_loader, train_loader, model, criterion_ce, args)
         is_best = acc1 > best_acc1
         best_acc1 = max(acc1, best_acc1)
-        output_best = 'Best Prec@1: %.3f\n' % (best_acc1)
+        output_best = 'Epoch: %d   Best Prec@1: %.3f\n' % (epoch_num,best_acc1)
         print(output_best)
         save_checkpoint({
                     'epoch': epoch + 1,
@@ -438,6 +435,7 @@ def main_worker(gpu, ngpus_per_node, args):
                     'state_dict': model.state_dict(),
                     'optimizer': optimizer.state_dict(),
                 }, is_best=False, filename=f'{args.root_model}/moco_ckpt_{(epoch+1):04d}.pth.tar')
+        epoch_num += 1
 
 
 def train(train_loader, model, criterion, optimizer, epoch, args):
@@ -453,18 +451,15 @@ def train(train_loader, model, criterion, optimizer, epoch, args):
 
     # switch to train mode
     model.train()
-    total_logits = torch.empty((0, 100))
-    total_labels = torch.empty(0, dtype=torch.long)
-    if torch.cuda.is_available():
-        total_logits = total_logits.cuda()
-        total_labels = total_labels.cuda()
+    total_logits = torch.empty((0, 100)).cuda()
+    total_labels = torch.empty(0, dtype=torch.long).cuda()
 
     end = time.time()
     for i, (images, target) in enumerate(train_loader):
         # measure data loading time
         data_time.update(time.time() - end)
 
-        if args.gpu is not None and torch.cuda.is_available():
+        if args.gpu is not None:
             images[0] = images[0].cuda(args.gpu, non_blocking=True)
             images[1] = images[1].cuda(args.gpu, non_blocking=True)
             target = target.cuda(args.gpu, non_blocking=True)
@@ -476,7 +471,7 @@ def train(train_loader, model, criterion, optimizer, epoch, args):
         total_logits = torch.cat((total_logits, logits))
         total_labels = torch.cat((total_labels, target))
 
-        acc1, acc5 = accuracy(logits, target, topk=(1, 5))
+        acc1, acc5 = accuracy(logits, target, topk=(1, 5))[0]
         losses.update(loss.item(), logits.size(0))
         top1.update(acc1[0], logits.size(0))
         top5.update(acc5[0], logits.size(0))
@@ -492,9 +487,17 @@ def train(train_loader, model, criterion, optimizer, epoch, args):
 
         if i % args.print_freq == 0:
             progress.display(i, args)
-
+    
 
 def validate(val_loader, train_loader, model, criterion, args):
+
+    all_batch_correct_per_class = torch.zeros(100, dtype=torch.float64, requires_grad=False)
+    all_batch_per_class = torch.zeros(100, dtype=torch.float64, requires_grad=False)
+
+    if torch.cuda.is_available():
+        all_batch_correct_per_class = all_batch_correct_per_class.cuda()
+        all_batch_per_class = all_batch_per_class.cuda()
+
     batch_time = AverageMeter('Time', ':6.3f')
     losses = AverageMeter('Loss', ':.4f')
     top1 = AverageMeter('Acc@1', ':6.2f')
@@ -506,16 +509,13 @@ def validate(val_loader, train_loader, model, criterion, args):
 
     # switch to evaluate mode
     model.eval()
-    total_logits = torch.empty((0, 100))
-    total_labels = torch.empty(0, dtype=torch.long)
-    if torch.cuda.is_available():
-        total_logits = total_logits.cuda()
-        total_labels = total_labels.cuda()
+    total_logits = torch.empty((0, 100)).cuda()
+    total_labels = torch.empty(0, dtype=torch.long).cuda()
 
     with torch.no_grad():
         end = time.time()
         for i, (images, target) in enumerate(val_loader):
-            if args.gpu is not None and torch.cuda.is_available():
+            if args.gpu is not None:
                 images = images.cuda(args.gpu, non_blocking=True)
             if torch.cuda.is_available():
                 target = target.cuda(args.gpu, non_blocking=True)
@@ -528,7 +528,9 @@ def validate(val_loader, train_loader, model, criterion, args):
             total_labels = torch.cat((total_labels, target))
 
             # measure accuracy and record loss
-            acc1, acc5 = accuracy(output, target, topk=(1, 5))
+            (acc1, acc5), batch_per_correct = accuracy(output, target, topk=(1, 5))
+            all_batch_correct_per_class += batch_per_correct[0]
+            all_batch_per_class += batch_per_correct[1]
             losses.update(loss.item(), images.size(0))
             top1.update(acc1[0], images.size(0))
             top5.update(acc5[0], images.size(0))
@@ -539,9 +541,20 @@ def validate(val_loader, train_loader, model, criterion, args):
 
             if i % args.print_freq == 0:
                 progress.display(i, args)
+
         # TODO: this should also be done with the ProgressMeter
         open(args.root_model+"/"+args.mark+".log","a+").write(' * Acc@1 {top1.avg:.3f} Acc@5 {top5.avg:.3f}\n'
               .format(top1=top1, top5=top5))
+
+    GM, HM, LR = GM_HM_LR(all_batch_correct_per_class, all_batch_per_class)
+
+    output = ('GM {GM:.3f}\t'
+              'HM {HM:.3f}\t'
+              'LR {LR:.3f}\n'.format(
+        GM=GM,
+        HM=HM,
+        LR=LR))
+    print(output)
 
     return top1.avg
 
@@ -615,11 +628,37 @@ def accuracy(output, target, topk=(1,)):
         pred = pred.t()
         correct = pred.eq(target.view(1, -1).expand_as(pred)).contiguous()
 
+        one_weights = torch.ones(batch_size)
+        if torch.cuda.is_available():
+            one_weights = one_weights.cuda()
+
         res = []
+        cls = []
+
+        cls1 = torch.bincount(target, weights=correct[0, :], minlength=100).to(torch.float64)
+        cls2 = torch.bincount(target, weights=one_weights, minlength=100).to(torch.float64)
+        if torch.cuda.is_available():
+            cls1 = cls1.cuda()
+            cls2 = cls2.cuda()
+        cls.append(cls1)
+        cls.append(cls2)
+
         for k in topk:
             correct_k = correct[:k].view(-1).float().sum(0, keepdim=True)
             res.append(correct_k.mul_(100.0 / batch_size))
-        return res
+        return res, cls
+
+def GM_HM_LR(correct_per_class,all_per_class):
+    cls_nums = len(correct_per_class)
+    # print(cls_nums)
+    recall = torch.clamp(correct_per_class / all_per_class,min=1e-3)
+    # print(recall)
+    torch.log(recall)
+
+    GM = torch.pow(torch.prod(recall),1/cls_nums)#cls_nums个类别
+    HM = cls_nums/torch.sum(1/recall)
+    LR = torch.min(recall)
+    return GM,HM,LR
 
 
 if __name__ == '__main__':
