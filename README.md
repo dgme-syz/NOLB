@@ -258,6 +258,8 @@ pip install -r requirements.txt
 
 ⭕**使用 Paco 方法**
 
+> ！注意该方法只能在 gpu 设备上运行
+
 ```markdown
 cd ./Paco
 ```
