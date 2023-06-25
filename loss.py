@@ -22,7 +22,7 @@ def get_loss(args, cls_num_list, per_cls_weights):
     elif args.loss_type == 'GML':
         criterion = GML(cls_num_list).cuda(args.gpu)
     elif args.loss_type == 'Lade':
-        criterion = LADELoss()
+        criterion = LADELoss(num_classes=len(cls_num_list))
     elif args.loss_type == 'BSCE':
         criterion = BalancedSoftmax(cls_num_list)
     else:
