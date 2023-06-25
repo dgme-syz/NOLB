@@ -32,6 +32,11 @@ def GM(output, target, return_length=False):
         # print(pred.size())
         correct = pred.eq(target.expand_as(pred))
         one = torch.ones(batch_size)
+
+        if torch.cuda.is_available():
+            correct = correct.cuda()
+            one  = one.cuda()
+
         cls1 = torch.bincount(target,weights=correct,minlength=cls_nums).to(torch.float64)
         cls2 = torch.bincount(target,weights=one,minlength=cls_nums).to(torch.float64)
         if torch.cuda.is_available():
@@ -52,6 +57,12 @@ def HM(output, target, return_length=False):
         pred = torch.argmax(output,dim = 1)
         correct = pred.eq(target.expand_as(pred))
         one = torch.ones(batch_size)
+
+        if torch.cuda.is_available():
+            correct = correct.cuda()
+            one  = one.cuda()
+
+
         cls1 = torch.bincount(target,weights=correct,minlength=cls_nums).to(torch.float64)
         cls2 = torch.bincount(target,weights=one,minlength=cls_nums).to(torch.float64)
         if torch.cuda.is_available():
@@ -73,6 +84,12 @@ def LR(output, target, return_length=False):
         pred = torch.argmax(output,dim = 1)
         correct = pred.eq(target.expand_as(pred))
         one = torch.ones(batch_size)
+
+        if torch.cuda.is_available():
+            correct = correct.cuda()
+            one  = one.cuda()
+
+    
         cls1 = torch.bincount(target,weights=correct,minlength=cls_nums).to(torch.float64)
         cls2 = torch.bincount(target,weights=one,minlength=cls_nums).to(torch.float64)
         if torch.cuda.is_available():
