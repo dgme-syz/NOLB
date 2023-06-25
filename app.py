@@ -254,7 +254,7 @@ if __name__ == '__main__':
                         mome = gr.Number(label='Momentum', value=0.9)
                         arch = gr.Dropdown(choices=['resnet20', 'resnet32','resnet44'], label='Model Architecture', value='resnet32')
                         weight_decay = gr.Number(label='Weight Decay', value=2e-4)
-                        loss = gr.Dropdown(choices=['BSCE', 'LDAM', 'CE', 'Focal', 'FeaBal', 'GML', 'Lade'], label='Loss Type', value='CE')
+                        loss = gr.Dropdown(choices=['BSCE', 'LDAM', 'CE', 'Focal', 'FeaBal', 'GML'], label='Loss Type', value='CE')
                         lr = gr.Number(label='Learning Rate', value=0.1)
                         Lam_ = gr.Number(label='Lambda', value=60)
                         res.extend([mome,arch,weight_decay,loss,lr,Lam_])
@@ -294,7 +294,7 @@ if __name__ == '__main__':
                     arch_for_use = gr.Dropdown(choices=['resnet20', 'resnet32','resnet44'], label='Model Architecture', value='resnet32')
                     old_model = gr.Dropdown(choices=model_file,label='Select Pretrained Model')
                 with gr.Column():
-                    fine_tuning = gr.Dropdown(choices=['BSCE', 'LDAM', 'CE', 'Focal', 'FeaBal', 'GML', 'Lade'], label='Loss Type for Tuning', value='GML')
+                    fine_tuning = gr.Dropdown(choices=['BSCE', 'LDAM', 'CE', 'Focal', 'FeaBal', 'GML'], label='Loss Type for Tuning', value='GML')
                     tuning_epochs = gr.Number(label='Epochs', value=100)
                 compare = gr.Button("Compare", variant="primary")
                 output_res = gr.Image(type='filepath', label="old vs new")
