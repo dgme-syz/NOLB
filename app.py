@@ -14,13 +14,13 @@ from dataset.dataset import get_dataset
 
 from train import main
 
-if os.path.exists('.\\models\\pretrained') == False:
-    os.makedirs(name='.\\models\\pretrained', exist_ok=True)
+if os.path.exists('./models/pretrained') == False:
+    os.makedirs(name='./models/pretrained', exist_ok=True)
 
-folder_path = '.\\models\\pretrained'
+folder_path = './models/pretrained'
 model_file = os.listdir(folder_path)
 
-model_path = '.\\Trained_Model'
+model_path = './Trained_Model'
 existed_models = os.listdir(model_path)
 
 labels_10 = ['airplane', 'automobile', 'bird', 'cat', 'deer', 'dog', 'frog', 'horse', 'ship', 'truck']
