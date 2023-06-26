@@ -128,7 +128,7 @@ def accuracy(output, output_old, t1, t2, target, topk=(1,)):
         if output_old != None:
             output = (output - torch.max(output)) / t1
             output_old = (output - torch.max(output_old)) / t2
-            output = (torch.softmax(output,dim = 1) + torch.softmax(output,dim = 1)) / 2
+            output = (torch.softmax(output,dim = 1) + torch.softmax(output_old,dim = 1)) / 2
         _, pred = output.topk(maxk, 1, True, True)
 
 
