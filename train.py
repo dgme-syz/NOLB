@@ -2,6 +2,7 @@ import argparse
 import os
 import random
 import time
+import copy
 import warnings
 import sys
 import shutil
@@ -94,7 +95,9 @@ def main(args):
                                        pretrained_keep = args.pretrained_keep,
                                        pretrained_path=args.pretrained_path)
     # record old model
-    oldmodel = model
+    oldmodel = copy.deepcopy(model)
+    if torch.cuda.is_available():
+        oldmodel = oldmodel.cuda()
 
     block = None
     classifier = None
