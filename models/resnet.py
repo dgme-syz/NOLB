@@ -135,9 +135,9 @@ def resnet20(num_classes=10, classifier=True, linear_type='Default', pretrained_
                 parm.requires_grad = False
             else:
                 if name == 'linear.weight':
-                    init.kaiming_normal_(param)
+                    init.kaiming_normal_(parm)
                 elif name == 'linear.bias':
-                    init.zeros_(param)
+                    init.zeros_(parm)
     if pretrained_keep:
         print('You are using pretrained resnet20 and all layers is frozen')
         model.load_state_dict(torch.load(pretrained_path, map_location=device))
@@ -159,9 +159,9 @@ def resnet32(num_classes=10, classifier=True, linear_type='Default', pretrained_
                 parm.requires_grad = False
             else:
                 if name == 'linear.weight':
-                    init.kaiming_normal_(param)
+                    init.kaiming_normal_(parm)
                 elif name == 'linear.bias':
-                    init.zeros_(param)
+                    init.zeros_(parm)
     if pretrained_keep:
         print('You are using pretrained resnet32 and all layers is frozen')
         model.load_state_dict(torch.load(pretrained_path, map_location=device))
@@ -183,9 +183,9 @@ def resnet44(num_classes=10, classifier=True, linear_type='Default', pretrained_
                 parm.requires_grad = False
             else:
                 if name == 'linear.weight':
-                    init.kaiming_normal_(param)
+                    init.kaiming_normal_(parm)
                 elif name == 'linear.bias':
-                    init.zeros_(param)
+                    init.zeros_(parm)
     if pretrained_keep:
         print('You are using pretrained resnet44 and all layers is frozen')
         model.load_state_dict(torch.load(pretrained_path, map_location=device))
