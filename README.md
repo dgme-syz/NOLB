@@ -250,7 +250,7 @@ pip install -r requirements.txt
 
 
 
-⭕**使用 CE/BSCE/Focal/LaDe/FeaBal/LDAM 方法**
+⭕**使用 CE/BSCE/Focal/FeaBal/LDAM 方法**
 
 只需在 app.py 生成的 webui 上修改损失函数，并调整其他参数即可，如果您需要更详细的训练情况，可以查看 ”./log“
 
